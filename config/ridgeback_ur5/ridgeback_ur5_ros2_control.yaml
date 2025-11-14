@@ -1,0 +1,7 @@
+controller_manager:
+  ros__parameters:
+    update_rate: 250
+    ocs2_controller:
+      type: ocs2_ros2_control/Ocs2Ros2Controller
+    joint_state_broadcaster:
+      type: joint_state_broadcaster/JointStateBroadcaster

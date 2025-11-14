@@ -1,0 +1,12 @@
+<library path="ocs2_ros2_control">
+  <class name="ocs2_ros2_control/RidgebackUr5System"
+         type="ocs2_ros2_control::RidgebackUr5Hardware"
+         base_class_type="hardware_interface::SystemInterface">
+    <description>Simulated Ridgeback + UR5 hardware for ros2_control.</description>
+  </class>
+  <class name="ocs2_ros2_control/Ocs2Ros2Controller"
+         type="ocs2_ros2_control::Ocs2Ros2Controller"
+         base_class_type="controller_interface::ControllerInterface">
+    <description>OCS2-based ros2_control controller for Ridgeback + UR5.</description>
+  </class>
+</library>
