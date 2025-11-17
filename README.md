@@ -11,9 +11,12 @@ The package is intentionally self‑contained (`urdf`/`xacro`, `task` and `rviz`
 ## Prerequisites
 
 1. Install ROS 2 Humble (or a newer distro with the same APIs).
-2. Clone and build [`wei-hsuan-cheng/ocs2_ros2`](https://github.com/wei-hsuan-cheng/ocs2_ros2). That repository provides the `ocs2_mobile_manipulator` libraries and the ROS nodes (`mobile_manipulator_mpc_node`, marker target) that this package launches.
-
-Make sure the `ocs2_ros2` workspace is sourced before building this package.
+2. Clone and build [`wei-hsuan-cheng/ocs2_ros2`](https://github.com/wei-hsuan-cheng/ocs2_ros2) up to `ocs2_mobile_manipulator_ros` `pkg`:
+    ```bash
+    cd ~/ros2_ws
+    colcon build --packages-up-to ocs2_mobile_manipulator_ros --symlink-install
+    ```
+    - Make sure the `ocs2_ros2` workspace is sourced before building this package.
 
 ## Build and Run Demo
 

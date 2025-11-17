@@ -21,6 +21,8 @@ find_package(visualization_msgs REQUIRED)
 find_package(ocs2_self_collision_visualization REQUIRED)
 find_package(xacro REQUIRED)
 find_package(yaml-cpp REQUIRED)
+find_package(ocs2_msgs REQUIRED)
+find_package(std_srvs REQUIRED)
 
 add_library(${PROJECT_NAME}
   SHARED
@@ -58,6 +60,32 @@ target_link_libraries(${PROJECT_NAME}
   yaml-cpp
 )
 
+set(OCS2_CONTROL_NODE_DEPENDENCIES
+  rclcpp
+  ocs2_mobile_manipulator
+  ocs2_ros_interfaces
+  ocs2_msgs
+  std_srvs
+  geometry_msgs
+  visualization_msgs
+)
+
+add_executable(mobile_manipulator_mpc_node src/mpc/MobileManipulatorMpcNode.cpp)
+ament_target_dependencies(mobile_manipulator_mpc_node ${OCS2_CONTROL_NODE_DEPENDENCIES} ocs2_core ocs2_mpc)
+target_link_libraries(mobile_manipulator_mpc_node yaml-cpp)
+
+add_executable(mobile_manipulator_marker_target src/command/MobileManipulatorMarkerTarget.cpp)
+ament_target_dependencies(mobile_manipulator_marker_target ${OCS2_CONTROL_NODE_DEPENDENCIES})
+target_link_libraries(mobile_manipulator_marker_target yaml-cpp)
+
+add_executable(mobile_manipulator_twist_target src/command/MobileManipulatorTwistTarget.cpp)
+ament_target_dependencies(mobile_manipulator_twist_target ${OCS2_CONTROL_NODE_DEPENDENCIES})
+target_link_libraries(mobile_manipulator_twist_target yaml-cpp)
+
+add_executable(mobile_manipulator_trajectory_target src/command/MobileManipulatorTrajectoryTarget.cpp)
+ament_target_dependencies(mobile_manipulator_trajectory_target ${OCS2_CONTROL_NODE_DEPENDENCIES})
+target_link_libraries(mobile_manipulator_trajectory_target yaml-cpp)
+
 find_program(XACRO_EXECUTABLE xacro)
 if(NOT XACRO_EXECUTABLE)
   message(FATAL_ERROR "xacro executable not found")
@@ -67,18 +95,19 @@ set(XACRO_INPUT ${CMAKE_CURRENT_SOURCE_DIR}/description/urdf/ridgeback_ur5.urdf.
 set(GENERATED_URDF_DIR ${CMAKE_CURRENT_BINARY_DIR}/generated_urdf)
 set(GENERATED_DEFAULT ${GENERATED_URDF_DIR}/ridgeback_ur5.urdf)
 set(GENERATED_CONTROL ${GENERATED_URDF_DIR}/ridgeback_ur5_ros2_control.urdf)
+set(INITIAL_POSE_FILE ${CMAKE_CURRENT_SOURCE_DIR}/config/ridgeback_ur5/ridgeback_ur5_initial_pose.yaml)
 
 file(MAKE_DIRECTORY ${GENERATED_URDF_DIR})
 
 add_custom_command(
   OUTPUT ${GENERATED_DEFAULT}
-  COMMAND ${XACRO_EXECUTABLE} -o ${GENERATED_DEFAULT} ${XACRO_INPUT} ros2_control_mode:=false
+  COMMAND ${XACRO_EXECUTABLE} -o ${GENERATED_DEFAULT} ${XACRO_INPUT} ros2_control_mode:=false initial_pose_file:=${INITIAL_POSE_FILE}
   DEPENDS ${XACRO_INPUT}
 )
 
 add_custom_command(
   OUTPUT ${GENERATED_CONTROL}
-  COMMAND ${XACRO_EXECUTABLE} -o ${GENERATED_CONTROL} ${XACRO_INPUT} ros2_control_mode:=true
+  COMMAND ${XACRO_EXECUTABLE} -o ${GENERATED_CONTROL} ${XACRO_INPUT} ros2_control_mode:=true initial_pose_file:=${INITIAL_POSE_FILE}
   DEPENDS ${XACRO_INPUT}
 )
 
@@ -96,6 +125,14 @@ install(TARGETS ${PROJECT_NAME}
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin
+)
+
+install(TARGETS
+  mobile_manipulator_mpc_node
+  mobile_manipulator_marker_target
+  mobile_manipulator_twist_target
+  mobile_manipulator_trajectory_target
+  DESTINATION lib/${PROJECT_NAME}
 )
 
 install(DIRECTORY include/

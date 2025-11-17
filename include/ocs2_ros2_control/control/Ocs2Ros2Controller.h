@@ -43,7 +43,7 @@ private:
   ocs2::SystemObservation buildObservation(const rclcpp::Time &time) const;
   void applyCommand(const ocs2::vector_t &command);
   bool initializeHandles();
-  ocs2::TargetTrajectories computeInitialTarget() const;
+  ocs2::TargetTrajectories computeInitialTarget(const ocs2::vector_t &state, double time) const;
 
   std::vector<std::string> arm_joint_names_;
 

@@ -19,6 +19,9 @@
   <depend>ocs2_ros_interfaces</depend>
   <depend>ocs2_mobile_manipulator</depend>
   <depend>ocs2_self_collision_visualization</depend>
+  <depend>ocs2_msgs</depend>
+  <depend>std_srvs</depend>
+  <depend>yaml-cpp</depend>
   <depend>geometry_msgs</depend>
   <depend>visualization_msgs</depend>
   <depend>tf2_ros</depend>
@@ -27,7 +30,6 @@
   <exec_depend>launch_ros</exec_depend>
   <exec_depend>controller_manager</exec_depend>
   <exec_depend>joint_state_broadcaster</exec_depend>
-  <exec_depend>ocs2_mobile_manipulator_ros</exec_depend>
   <exec_depend>ocs2_robotic_assets</exec_depend>
   <exec_depend>robot_state_publisher</exec_depend>
   <exec_depend>joint_state_publisher_gui</exec_depend>

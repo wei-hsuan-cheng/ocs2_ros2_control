@@ -5,6 +5,8 @@
 <!-- ============================================================================================================== -->
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="ridgeback">
   <xacro:arg name="ros2_control_mode" default="true"/>
+  <xacro:arg name="initial_pose_file"
+             default="$(find ocs2_ros2_control)/config/ridgeback_ur5/ridgeback_ur5_initial_pose.yaml"/>
   <material name="dark_grey">
     <color rgba="0.2 0.2 0.2 1.0"/>
   </material>
@@ -659,7 +661,7 @@
       <param name="max_base_velocity">1.0</param>
       <param name="max_yaw_velocity">0.8</param>
       <param name="max_joint_velocity">2.0</param>
-      <param name="initial_pose_file">$(find ocs2_ros2_control)/config/ridgeback_ur5/ridgeback_ur5_initial_pose.yaml</param>
+      <param name="initial_pose_file">$(arg initial_pose_file)</param>
     </hardware>
 
       <joint name="ur_arm_shoulder_pan_joint">

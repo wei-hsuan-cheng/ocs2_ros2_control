@@ -132,11 +132,11 @@ controller_interface::CallbackReturn Ocs2Ros2Controller::on_configure(const rclc
                 arm_joint_names_.size(), static_cast<size_t>(info.armDim));
   }
 
-  initial_observation_.state = vector_t::Zero(state_dim_);
+  initial_observation_.state = interface_->getInitialState();
   initial_observation_.input = vector_t::Zero(input_dim_);
   initial_observation_.time = 0.0;
   initial_observation_.mode = 0;
-  initial_target_ = ocs2::TargetTrajectories();
+  initial_target_ = computeInitialTarget();
   last_command_ = vector_t::Zero(input_dim_);
 
   mpc_reset_done_ = false;
@@ -152,10 +152,6 @@ controller_interface::CallbackReturn Ocs2Ros2Controller::on_activate(const rclcp
     RCLCPP_ERROR(get_node()->get_logger(), "Failed to initialize hardware handles.");
     return controller_interface::CallbackReturn::ERROR;
   }
-
-  const auto now = get_node()->now();
-  initial_observation_ = buildObservation(now);
-  initial_target_ = computeInitialTarget(initial_observation_.state, initial_observation_.time);
 
   mrt_->reset();
   resetMpc();
@@ -201,9 +197,6 @@ void Ocs2Ros2Controller::resetMpc() {
     return;
   }
   try {
-    const auto now = get_node()->now();
-    initial_observation_ = buildObservation(now);
-    initial_target_ = computeInitialTarget(initial_observation_.state, initial_observation_.time);
     mrt_->resetMpcNode(initial_target_);
     mpc_reset_done_ = true;
     RCLCPP_INFO(get_node()->get_logger(), "Requested MPC reset with initial target.");
@@ -254,13 +247,13 @@ void Ocs2Ros2Controller::applyCommand(const vector_t &command) {
   }
 }
 
-TargetTrajectories Ocs2Ros2Controller::computeInitialTarget(const vector_t &state, double time) const {
+TargetTrajectories Ocs2Ros2Controller::computeInitialTarget() const {
   vector_t init_target;
   const auto &pin_interface = interface_->getPinocchioInterface();
   const auto &model = pin_interface.getModel();
   auto data = pin_interface.getData();
 
-  pinocchio::forwardKinematics(model, data, state);
+  pinocchio::forwardKinematics(model, data, initial_observation_.state);
   pinocchio::updateFramePlacements(model, data);
 
   const auto &info = interface_->getManipulatorModelInfo();
@@ -287,7 +280,7 @@ TargetTrajectories Ocs2Ros2Controller::computeInitialTarget(const vector_t &stat
   }
 
   const vector_t zero_input = vector_t::Zero(interface_->getManipulatorModelInfo().inputDim);
-  return TargetTrajectories({time}, {init_target}, {zero_input});
+  return TargetTrajectories({initial_observation_.time}, {init_target}, {zero_input});
 }
 
 controller_interface::return_type Ocs2Ros2Controller::update(const rclcpp::Time &time, const rclcpp::Duration &) {
