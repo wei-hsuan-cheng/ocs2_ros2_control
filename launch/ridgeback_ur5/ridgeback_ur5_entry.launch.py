@@ -48,29 +48,6 @@ def generate_launch_description():
         DeclareLaunchArgument("commandSmoothingAlpha", default_value="1.0", description="Blending factor for consecutive MPC commands."),
         DeclareLaunchArgument("commandType", default_value="marker", description="Command interface to start: marker, twist, or trajectory."),
         DeclareLaunchArgument("initialPoseFile", default_value=initial_pose_default, description="Initial pose YAML for marker/visualization."),
-        DeclareLaunchArgument("markerPublishRate", default_value="100.0", description="Interactive marker publish rate."),
-        DeclareLaunchArgument("enableJoystick", default_value="false", description="Enable joystick control for the marker."),
-        DeclareLaunchArgument("enableAutoPosition", default_value="false", description="Enable automatic marker repositioning."),
-        
-        DeclareLaunchArgument("twistPublishRate", default_value="100.0", description="Twist target publish rate."),
-        DeclareLaunchArgument("twistHorizon", default_value="1.0", description="Twist target horizon (s)."),
-        DeclareLaunchArgument("twistDt", default_value="0.01", description="Twist discretization step (s)."),
-        DeclareLaunchArgument("twistInWorld", default_value="false", description="Interpret twist in world frame."),
-        DeclareLaunchArgument("twistVelX", default_value="0.0"),
-        DeclareLaunchArgument("twistVelY", default_value="0.0"),
-        DeclareLaunchArgument("twistVelZ", default_value="0.05"),
-        DeclareLaunchArgument("twistOmegaX", default_value="0.0"),
-        DeclareLaunchArgument("twistOmegaY", default_value="0.0"),
-        DeclareLaunchArgument("twistOmegaZ", default_value="0.0"),
-        
-        DeclareLaunchArgument("trajectoryPublishRate", default_value="100.0", description="Trajectory target publish rate."),
-        DeclareLaunchArgument("trajectoryHorizon", default_value="5.0", description="Trajectory horizon (s)."),
-        DeclareLaunchArgument("trajectoryDt", default_value="0.01", description="Trajectory discretization step (s)."),
-        DeclareLaunchArgument("trajectoryAmplitude", default_value="0.2", description="Eight-shape amplitude (m)."),
-        DeclareLaunchArgument("trajectoryFrequency", default_value="0.2", description="Eight-shape frequency (Hz)."),
-        DeclareLaunchArgument("trajectoryAxisX", default_value="1.0"),
-        DeclareLaunchArgument("trajectoryAxisY", default_value="0.0"),
-        DeclareLaunchArgument("trajectoryAxisZ", default_value="1.0"),
     ]
 
     # Common launch configurations
@@ -136,9 +113,6 @@ def generate_launch_description():
             "libFolder": lib_folder,
             "urdfFile": urdf_file,
             "initialPoseFile": initial_pose_file,
-            "markerPublishRate": LaunchConfiguration("markerPublishRate"),
-            "enableJoystick": LaunchConfiguration("enableJoystick"),
-            "enableAutoPosition": LaunchConfiguration("enableAutoPosition"),
         }.items(),
     )
 
@@ -151,16 +125,6 @@ def generate_launch_description():
             "taskFile": task_file,
             "libFolder": lib_folder,
             "urdfFile": urdf_file,
-            "twistPublishRate": LaunchConfiguration("twistPublishRate"),
-            "twistHorizon": LaunchConfiguration("twistHorizon"),
-            "twistDt": LaunchConfiguration("twistDt"),
-            "twistInWorld": LaunchConfiguration("twistInWorld"),
-            "twistVelX": LaunchConfiguration("twistVelX"),
-            "twistVelY": LaunchConfiguration("twistVelY"),
-            "twistVelZ": LaunchConfiguration("twistVelZ"),
-            "twistOmegaX": LaunchConfiguration("twistOmegaX"),
-            "twistOmegaY": LaunchConfiguration("twistOmegaY"),
-            "twistOmegaZ": LaunchConfiguration("twistOmegaZ"),
         }.items(),
     )
 
@@ -173,14 +137,6 @@ def generate_launch_description():
             "taskFile": task_file,
             "libFolder": lib_folder,
             "urdfFile": urdf_file,
-            "trajectoryPublishRate": LaunchConfiguration("trajectoryPublishRate"),
-            "trajectoryHorizon": LaunchConfiguration("trajectoryHorizon"),
-            "trajectoryDt": LaunchConfiguration("trajectoryDt"),
-            "trajectoryAmplitude": LaunchConfiguration("trajectoryAmplitude"),
-            "trajectoryFrequency": LaunchConfiguration("trajectoryFrequency"),
-            "trajectoryAxisX": LaunchConfiguration("trajectoryAxisX"),
-            "trajectoryAxisY": LaunchConfiguration("trajectoryAxisY"),
-            "trajectoryAxisZ": LaunchConfiguration("trajectoryAxisZ"),
         }.items(),
     )
 

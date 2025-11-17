@@ -47,8 +47,9 @@ using namespace ocs2::mobile_manipulator;
 
 namespace {
 
-vector_t loadInitialStateFromYaml(const std::string &path, const ManipulatorModelInfo &info,
-                                  const vector_t &defaultState, const rclcpp::Logger &logger) {
+/* YAML helper */
+vector_t loadInitialStateFromYaml(const std::string& path, const ManipulatorModelInfo& info,
+                                  const vector_t& defaultState, const rclcpp::Logger& logger) {
   if (path.empty()) {
     return defaultState;
   }
@@ -82,7 +83,7 @@ vector_t loadInitialStateFromYaml(const std::string &path, const ManipulatorMode
       const size_t offset = state.size() - info.armDim;
       if (joints.IsMap()) {
         for (size_t i = 0; i < info.dofNames.size(); ++i) {
-          const auto &name = info.dofNames[i];
+          const auto& name = info.dofNames[i];
           if (joints[name]) {
             state(offset + i) = joints[name].as<double>(state(offset + i));
           }
@@ -93,7 +94,7 @@ vector_t loadInitialStateFromYaml(const std::string &path, const ManipulatorMode
         }
       }
     }
-  } catch (const std::exception &e) {
+  } catch (const std::exception& e) {
     RCLCPP_WARN(logger, "Failed to load initial pose override from %s: %s", path.c_str(), e.what());
   }
   return state;
@@ -102,7 +103,7 @@ vector_t loadInitialStateFromYaml(const std::string &path, const ManipulatorMode
 } // namespace
 
 /* Helpers */
-bool readDualArmModeFromTaskFile(const std::string &taskFile) {
+bool readDualArmModeFromTaskFile(const std::string& taskFile) {
   try {
     boost::property_tree::ptree pt;
     boost::property_tree::read_info(taskFile, pt);
@@ -114,13 +115,13 @@ bool readDualArmModeFromTaskFile(const std::string &taskFile) {
     }
 
     return dualArmMode;
-  } catch (const std::exception &e) {
+  } catch (const std::exception& e) {
     std::cerr << "Error reading dualArmMode from task file: " << e.what() << std::endl;
     return false;
   }
 }
 
-std::string getMarkerFrameFromTaskFile(const std::string &taskFile) {
+std::string getMarkerFrameFromTaskFile(const std::string& taskFile) {
   try {
     boost::property_tree::ptree pt;
     boost::property_tree::read_info(taskFile, pt);
@@ -136,101 +137,76 @@ std::string getMarkerFrameFromTaskFile(const std::string &taskFile) {
     } else {
       return "world";
     }
-  } catch (const std::exception &e) {
+  } catch (const std::exception& e) {
     std::cerr << "Error reading frame information from task file: " << e.what() << std::endl;
     return "world";
   }
 }
 
-TargetTrajectories goalPoseToTargetTrajectories(const Eigen::Vector3d &position, const Eigen::Quaterniond &orientation,
-                                                const SystemObservation &observation) {
+TargetTrajectories goalPoseToTargetTrajectories(const Eigen::Vector3d& position, const Eigen::Quaterniond& orientation,
+                                                const SystemObservation& observation) {
   const scalar_array_t timeTrajectory{observation.time};
-
   const vector_t target = (vector_t(7) << position, orientation.coeffs()).finished();
   const vector_array_t stateTrajectory{target};
-
   const vector_array_t inputTrajectory{vector_t::Zero(observation.input.size())};
-
   return {timeTrajectory, stateTrajectory, inputTrajectory};
 }
 
-TargetTrajectories dualArmGoalPoseToTargetTrajectories(const Eigen::Vector3d &leftPosition,
-                                                       const Eigen::Quaterniond &leftOrientation,
-                                                       const Eigen::Vector3d &rightPosition,
-                                                       const Eigen::Quaterniond &rightOrientation,
-                                                       const SystemObservation &observation) {
+TargetTrajectories dualArmGoalPoseToTargetTrajectories(const Eigen::Vector3d& leftPosition,
+                                                       const Eigen::Quaterniond& leftOrientation,
+                                                       const Eigen::Vector3d& rightPosition,
+                                                       const Eigen::Quaterniond& rightOrientation,
+                                                       const SystemObservation& observation) {
   const scalar_array_t timeTrajectory{observation.time};
-
-  const vector_t target =
-      (vector_t(14) << leftPosition, leftOrientation.coeffs(), rightPosition, rightOrientation.coeffs()).finished();
+  const vector_t target = (vector_t(14) << leftPosition, leftOrientation.coeffs(), rightPosition, rightOrientation.coeffs()).finished();
   const vector_array_t stateTrajectory{target};
-
   const vector_array_t inputTrajectory{vector_t::Zero(observation.input.size())};
-
   return {timeTrajectory, stateTrajectory, inputTrajectory};
 }
 
-int main(int argc, char *argv[]) {
+/* Main function */
+int main(int argc, char* argv[]) {
   const std::string robotName = "mobile_manipulator";
   rclcpp::init(argc, argv);
-  rclcpp::Node::SharedPtr node =
-      rclcpp::Node::make_shared(robotName + "_target",
-                                rclcpp::NodeOptions()
-                                    .allow_undeclared_parameters(true)
-                                    .automatically_declare_parameters_from_overrides(true));
+  rclcpp::Node::SharedPtr node = rclcpp::Node::make_shared(
+      robotName + "_target",
+      rclcpp::NodeOptions().allow_undeclared_parameters(true).automatically_declare_parameters_from_overrides(true));
 
   std::string taskFile = node->get_parameter("taskFile").as_string();
   std::string urdfFile = "";
   std::string libFolder = "";
-  try {
-    urdfFile = node->get_parameter("urdfFile").as_string();
-  } catch (...) {
-  }
-  try {
-    libFolder = node->get_parameter("libFolder").as_string();
-  } catch (...) {
-  }
+  try { urdfFile = node->get_parameter("urdfFile").as_string(); } catch (...) {}
+  try { libFolder = node->get_parameter("libFolder").as_string(); } catch (...) {}
 
-  node->declare_parameter<std::string>("initialPoseFile", "");
-  std::string initialPoseFile = node->get_parameter("initialPoseFile").as_string();
+  std::string initialPoseFile = "";
+  try { initialPoseFile = node->get_parameter("initialPoseFile").as_string(); } catch (...) {}
 
   double markerPublishRate = 10.0;
-  try {
-    markerPublishRate = node->get_parameter("markerPublishRate").as_double();
-  } catch (...) {
-  }
+  try { markerPublishRate = node->get_parameter("markerPublishRate").as_double(); } catch (...) {}
 
   bool dualArmMode = readDualArmModeFromTaskFile(taskFile);
 
   bool enableDynamicFrame = false;
-  if (node->has_parameter("enableDynamicFrame")) {
-    enableDynamicFrame = node->get_parameter("enableDynamicFrame").as_bool();
-    RCLCPP_INFO(node->get_logger(), "enableDynamicFrame parameter found: %s", enableDynamicFrame ? "true" : "false");
-  } else {
-    RCLCPP_INFO(node->get_logger(), "enableDynamicFrame parameter not found, using default: false");
+  if (node->has_parameter("enableDynamicFrame"))
+  {
+      enableDynamicFrame = node->get_parameter("enableDynamicFrame").as_bool();
+      RCLCPP_INFO(node->get_logger(), "enableDynamicFrame parameter found: %s", enableDynamicFrame ? "true" : "false");
+  }
+  else
+  {
+      RCLCPP_INFO(node->get_logger(), "enableDynamicFrame parameter not found, using default: false");
   }
 
-  std::string markerFrame = "world";
-  if (enableDynamicFrame) {
-    markerFrame = getMarkerFrameFromTaskFile(taskFile);
-    RCLCPP_INFO(node->get_logger(), "Dynamic frame selection enabled. Using marker frame: %s", markerFrame.c_str());
-  } else {
-    RCLCPP_INFO(node->get_logger(), "Dynamic frame selection disabled. Using default frame: %s", markerFrame.c_str());
-  }
+  std::string markerFrame = enableDynamicFrame ? getMarkerFrameFromTaskFile(taskFile) : "world";
+  RCLCPP_INFO(node->get_logger(), "Marker frame: %s", markerFrame.c_str());
 
   bool enableJoystick = false;
-  try {
-    enableJoystick = node->get_parameter("enableJoystick").as_bool();
-  } catch (const rclcpp::exceptions::ParameterNotDeclaredException &) {
-    enableJoystick = false;
-  }
+  try { enableJoystick = node->get_parameter("enableJoystick").as_bool(); }
+  catch (const rclcpp::exceptions::ParameterNotDeclaredException&) { enableJoystick = false; }
 
   bool enableAutoPosition = false;
-  try {
-    enableAutoPosition = node->get_parameter("enableAutoPosition").as_bool();
-  } catch (const rclcpp::exceptions::ParameterNotDeclaredException &) {
-    enableAutoPosition = false;
-  }
+  try { enableAutoPosition = node->get_parameter("enableAutoPosition").as_bool(); }
+  catch (const rclcpp::exceptions::ParameterNotDeclaredException&) { enableAutoPosition = false; }
 
   std::unique_ptr<MobileManipulatorInterface> interfacePtr;
   vector_t initialStateOverride;
@@ -239,7 +215,7 @@ int main(int argc, char *argv[]) {
       interfacePtr = std::make_unique<MobileManipulatorInterface>(taskFile, libFolder, urdfFile);
       initialStateOverride = loadInitialStateFromYaml(initialPoseFile, interfacePtr->getManipulatorModelInfo(),
                                                       interfacePtr->getInitialState(), node->get_logger());
-    } catch (const std::exception &e) {
+    } catch (const std::exception& e) {
       RCLCPP_WARN(node->get_logger(), "Failed to create MobileManipulatorInterface: %s", e.what());
     }
   }
@@ -256,14 +232,11 @@ int main(int argc, char *argv[]) {
   RCLCPP_INFO(node->get_logger(), "Marker target node started. Publishing to %s_mpc_target at %.1f Hz",
               robotName.c_str(), markerPublishRate);
 
-  std::unique_ptr<JoystickMarkerWrapper> joystickControl;
-  std::unique_ptr<MarkerAutoPositionWrapper> autoPositionWrapper;
-
   auto getInitialStateForFk = [&]() -> vector_t {
     if (!interfacePtr) {
       return {};
     }
-    if (initialStateOverride.size() == interfacePtr->getInitialState().size()) {
+    if (static_cast<size_t>(initialStateOverride.size()) == interfacePtr->getManipulatorModelInfo().stateDim) {
       return initialStateOverride;
     }
     return interfacePtr->getInitialState();
@@ -271,30 +244,29 @@ int main(int argc, char *argv[]) {
 
   if (dualArmMode) {
     RCLCPP_INFO(node->get_logger(), "Dual arm mode enabled - creating dual arm interactive markers");
-    UnifiedTargetTrajectoriesInteractiveMarker targetPoseCommand(node, robotName,
-                                                                 &dualArmGoalPoseToTargetTrajectories, markerPublishRate,
-                                                                 markerFrame);
+    UnifiedTargetTrajectoriesInteractiveMarker targetPoseCommand(
+        node, robotName, &dualArmGoalPoseToTargetTrajectories, markerPublishRate, markerFrame);
 
     if (interfacePtr) {
       try {
-        const auto &pin = interfacePtr->getPinocchioInterface();
-        const auto &model = pin.getModel();
+        const auto& pin = interfacePtr->getPinocchioInterface();
+        const auto& model = pin.getModel();
         auto data = pin.getData();
         const auto q0 = getInitialStateForFk();
         if (static_cast<size_t>(q0.size()) == interfacePtr->getManipulatorModelInfo().stateDim) {
           pinocchio::forwardKinematics(model, data, q0);
           pinocchio::updateFramePlacements(model, data);
 
-          const auto &info = interfacePtr->getManipulatorModelInfo();
+          const auto& info = interfacePtr->getManipulatorModelInfo();
           const auto left_id = model.getFrameId(info.eeFrame);
-          const auto &left = data.oMf[left_id];
+          const auto& left = data.oMf[left_id];
           Eigen::Vector3d lp = left.translation();
           Eigen::Quaterniond lq(left.rotation());
           targetPoseCommand.setDualArmPose(ocs2::IMarkerControl::ArmType::LEFT, lp, lq);
           targetPoseCommand.updateMarkerDisplay("LeftArmGoal", lp, lq);
 
           const auto right_id = model.getFrameId(info.eeFrame1);
-          const auto &right = data.oMf[right_id];
+          const auto& right = data.oMf[right_id];
           Eigen::Vector3d rp = right.translation();
           Eigen::Quaterniond rq(right.rotation());
           targetPoseCommand.setDualArmPose(ocs2::IMarkerControl::ArmType::RIGHT, rp, rq);
@@ -304,33 +276,32 @@ int main(int argc, char *argv[]) {
           RCLCPP_WARN(node->get_logger(), "Initial state override dimension mismatch (got %zu, expected %zu)",
                       static_cast<size_t>(q0.size()), interfacePtr->getManipulatorModelInfo().stateDim);
         }
-      } catch (const std::exception &e) {
+      } catch (const std::exception& e) {
         RCLCPP_WARN(node->get_logger(), "FK init for markers failed: %s", e.what());
       }
     }
 
     auto srv = node->create_service<std_srvs::srv::SetBool>(
         "toggle_mpc",
-      [&](const std::shared_ptr<rmw_request_id_t> /*req_header*/,
-          const std::shared_ptr<std_srvs::srv::SetBool::Request> req,
-          std::shared_ptr<std_srvs::srv::SetBool::Response> res) {
+        [&](const std::shared_ptr<rmw_request_id_t> /*req_header*/, const std::shared_ptr<std_srvs::srv::SetBool::Request> req,
+            std::shared_ptr<std_srvs::srv::SetBool::Response> res) {
           if (!req->data) {
             try {
               Eigen::Vector3d lp, rp;
               Eigen::Quaterniond lq, rq;
               if (interfacePtr && haveObs) {
-                const auto &pin = interfacePtr->getPinocchioInterface();
-                const auto &model = pin.getModel();
+                const auto& pin = interfacePtr->getPinocchioInterface();
+                const auto& model = pin.getModel();
                 auto data = pin.getData();
                 pinocchio::forwardKinematics(model, data, latestObs.state);
                 pinocchio::updateFramePlacements(model, data);
-                const auto &info = interfacePtr->getManipulatorModelInfo();
+                const auto& info = interfacePtr->getManipulatorModelInfo();
                 const auto left_id = model.getFrameId(info.eeFrame);
-                const auto &left = data.oMf[left_id];
+                const auto& left = data.oMf[left_id];
                 lp = left.translation();
                 lq = Eigen::Quaterniond(left.rotation());
                 const auto right_id = model.getFrameId(info.eeFrame1);
-                const auto &right = data.oMf[right_id];
+                const auto& right = data.oMf[right_id];
                 rp = right.translation();
                 rq = Eigen::Quaterniond(right.rotation());
               } else {
@@ -348,7 +319,7 @@ int main(int argc, char *argv[]) {
               targetPoseCommand.sendDualArmTrajectories();
               res->success = true;
               res->message = "MPC paused; holding current poses";
-            } catch (const std::exception &e) {
+            } catch (const std::exception& e) {
               res->success = false;
               res->message = std::string("Hold failed: ") + e.what();
             }
@@ -363,13 +334,15 @@ int main(int argc, char *argv[]) {
 
     if (enableJoystick) {
       RCLCPP_INFO(node->get_logger(), "Joystick marker wrapper enabled");
-      joystickControl = std::make_unique<JoystickMarkerWrapper>(node, &targetPoseCommand);
+      auto joystickControl = std::make_unique<JoystickMarkerWrapper>(node, &targetPoseCommand);
+      (void)joystickControl;
     }
 
     if (enableAutoPosition) {
       RCLCPP_INFO(node->get_logger(), "Marker auto position wrapper enabled");
-      autoPositionWrapper = std::make_unique<MarkerAutoPositionWrapper>(
+      auto autoPositionWrapper = std::make_unique<MarkerAutoPositionWrapper>(
           node, robotName, &targetPoseCommand, MarkerAutoPositionWrapper::UpdateMode::CONTINUOUS, dualArmMode);
+      (void)autoPositionWrapper;
     }
 
     rclcpp::spin(node);
@@ -377,22 +350,22 @@ int main(int argc, char *argv[]) {
   }
 
   RCLCPP_INFO(node->get_logger(), "Single arm mode enabled");
-  UnifiedTargetTrajectoriesInteractiveMarker targetPoseCommand(node, robotName, &goalPoseToTargetTrajectories,
-                                                               markerPublishRate, markerFrame);
+  UnifiedTargetTrajectoriesInteractiveMarker targetPoseCommand(
+      node, robotName, &goalPoseToTargetTrajectories, markerPublishRate, markerFrame);
 
   if (interfacePtr) {
     try {
-      const auto &pin = interfacePtr->getPinocchioInterface();
-      const auto &model = pin.getModel();
+      const auto& pin = interfacePtr->getPinocchioInterface();
+      const auto& model = pin.getModel();
       auto data = pin.getData();
       const auto q0 = getInitialStateForFk();
       if (static_cast<size_t>(q0.size()) == interfacePtr->getManipulatorModelInfo().stateDim) {
         pinocchio::forwardKinematics(model, data, q0);
         pinocchio::updateFramePlacements(model, data);
 
-        const auto &info = interfacePtr->getManipulatorModelInfo();
+        const auto& info = interfacePtr->getManipulatorModelInfo();
         const auto ee_id = model.getFrameId(info.eeFrame);
-        const auto &ee = data.oMf[ee_id];
+        const auto& ee = data.oMf[ee_id];
         Eigen::Vector3d p = ee.translation();
         Eigen::Quaterniond q(ee.rotation());
         targetPoseCommand.setSingleArmPose(p, q);
@@ -402,29 +375,28 @@ int main(int argc, char *argv[]) {
         RCLCPP_WARN(node->get_logger(), "Initial state override dimension mismatch (got %zu, expected %zu)",
                     static_cast<size_t>(q0.size()), interfacePtr->getManipulatorModelInfo().stateDim);
       }
-    } catch (const std::exception &e) {
+    } catch (const std::exception& e) {
       RCLCPP_WARN(node->get_logger(), "FK init for marker failed: %s", e.what());
     }
   }
 
   auto srv = node->create_service<std_srvs::srv::SetBool>(
       "toggle_mpc",
-      [&](const std::shared_ptr<rmw_request_id_t> /*req_header*/,
-          const std::shared_ptr<std_srvs::srv::SetBool::Request> req,
+      [&](const std::shared_ptr<rmw_request_id_t> /*req_header*/, const std::shared_ptr<std_srvs::srv::SetBool::Request> req,
           std::shared_ptr<std_srvs::srv::SetBool::Response> res) {
         if (!req->data) {
           try {
             Eigen::Vector3d p;
             Eigen::Quaterniond q;
             if (interfacePtr && haveObs) {
-              const auto &pin = interfacePtr->getPinocchioInterface();
-              const auto &model = pin.getModel();
+              const auto& pin = interfacePtr->getPinocchioInterface();
+              const auto& model = pin.getModel();
               auto data = pin.getData();
               pinocchio::forwardKinematics(model, data, latestObs.state);
               pinocchio::updateFramePlacements(model, data);
-              const auto &info = interfacePtr->getManipulatorModelInfo();
+              const auto& info = interfacePtr->getManipulatorModelInfo();
               const auto ee_id = model.getFrameId(info.eeFrame);
-              const auto &ee = data.oMf[ee_id];
+              const auto& ee = data.oMf[ee_id];
               p = ee.translation();
               q = Eigen::Quaterniond(ee.rotation());
             } else {
@@ -439,7 +411,7 @@ int main(int argc, char *argv[]) {
             targetPoseCommand.sendSingleArmTrajectories();
             res->success = true;
             res->message = "MPC paused; holding current pose";
-          } catch (const std::exception &e) {
+          } catch (const std::exception& e) {
             res->success = false;
             res->message = std::string("Hold failed: ") + e.what();
           }
@@ -453,15 +425,17 @@ int main(int argc, char *argv[]) {
       });
 
   if (enableJoystick) {
-      RCLCPP_INFO(node->get_logger(), "Joystick marker wrapper enabled");
-      joystickControl = std::make_unique<JoystickMarkerWrapper>(node, &targetPoseCommand);
-    }
+    RCLCPP_INFO(node->get_logger(), "Joystick marker wrapper enabled");
+    auto joystickControl = std::make_unique<JoystickMarkerWrapper>(node, &targetPoseCommand);
+    (void)joystickControl;
+  }
 
   if (enableAutoPosition) {
-      RCLCPP_INFO(node->get_logger(), "Marker auto position wrapper enabled");
-      autoPositionWrapper = std::make_unique<MarkerAutoPositionWrapper>(
-          node, robotName, &targetPoseCommand, MarkerAutoPositionWrapper::UpdateMode::CONTINUOUS, dualArmMode);
-    }
+    RCLCPP_INFO(node->get_logger(), "Marker auto position wrapper enabled");
+    auto autoPositionWrapper = std::make_unique<MarkerAutoPositionWrapper>(
+        node, robotName, &targetPoseCommand, MarkerAutoPositionWrapper::UpdateMode::CONTINUOUS, dualArmMode);
+    (void)autoPositionWrapper;
+  }
 
   rclcpp::spin(node);
   return 0;

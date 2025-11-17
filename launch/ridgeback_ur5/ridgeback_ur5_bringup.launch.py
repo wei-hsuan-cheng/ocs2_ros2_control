@@ -129,8 +129,7 @@ def generate_launch_description():
     )
 
     marker_node = Node(
-        # package="ocs2_ros2_control",
-        package="ocs2_mobile_manipulator_ros",
+        package="ocs2_ros2_control",
         executable="mobile_manipulator_marker_target",
         name="mobile_manipulator_marker_target",
         condition=IfCondition(LaunchConfiguration("rviz")),
