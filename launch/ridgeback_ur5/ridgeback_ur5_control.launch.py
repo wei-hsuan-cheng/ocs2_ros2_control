@@ -2,11 +2,12 @@ import os
 import yaml
 
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument
+from launch.actions import DeclareLaunchArgument, RegisterEventHandler
 from launch.substitutions import Command, FindExecutable, LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterValue
 from launch_ros.substitutions import FindPackageShare
+from launch.event_handlers import OnProcessExit, OnProcessStart
 from ament_index_python.packages import get_package_share_directory
 
 
@@ -134,9 +135,21 @@ def generate_launch_description():
         arguments=["joint_state_broadcaster", "--controller-manager", "/controller_manager"],
     )
 
+    load_controller = RegisterEventHandler(
+        event_handler=OnProcessStart(
+            target_action=control_node,
+            on_start=[
+                joint_state_broadcaster,
+                diff_drive_spawner,
+                ocs2_controller_spawner,
+            ],
+        )
+    )
+
     return LaunchDescription(declared_arguments + [
         control_node,
-        joint_state_broadcaster,
-        diff_drive_spawner,
-        ocs2_controller_spawner,
+        load_controller,
+        # joint_state_broadcaster,
+        # diff_drive_spawner,
+        # ocs2_controller_spawner,
     ])
