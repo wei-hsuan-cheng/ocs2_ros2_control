@@ -10,7 +10,7 @@ model_information {
   ; base frame of the robot (from URDF)
   baseFrame                       "base_link"
   ; end-effector frame of the robot (from URDF)
-  eeFrame                         "ur_arm_tool0" // ur_arm_tool0; ur_arm_flange
+  eeFrame                         "ur_arm_tool0" // ur_arm_tool0; ur_arm_flange; ur_arm_wrist_2_link; ur_arm_base_link
 }
 
 model_settings
