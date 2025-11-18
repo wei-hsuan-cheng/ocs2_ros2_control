@@ -1,39 +1,36 @@
+import os
+import yaml
+
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
 from launch.substitutions import Command, FindExecutable, LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterValue
 from launch_ros.substitutions import FindPackageShare
+from ament_index_python.packages import get_package_share_directory
+
+
+def _load_common_params():
+    params_path = os.path.join(
+        get_package_share_directory("ocs2_ros2_control"),
+        "config",
+        "common_params.yaml",
+    )
+    with open(params_path, "r") as f:
+        return yaml.safe_load(f)
 
 
 def generate_launch_description():
-    package_share = FindPackageShare("ocs2_ros2_control")
+    params = _load_common_params()
+    control_defaults = params.get("control", {})
 
-    urdf_default = PathJoinSubstitution([
-        package_share,
-        "description",
-        "urdf",
-        "ridgeback_ur5.urdf",
-    ])
+    package_share = FindPackageShare("ocs2_ros2_control")
 
     control_urdf = PathJoinSubstitution([
         package_share,
         "description",
         "urdf",
         "ridgeback_ur5_ros2_control.urdf",
-    ])
-
-    task_default = PathJoinSubstitution([
-        package_share,
-        "config",
-        "ridgeback_ur5",
-        "task.info",
-    ])
-
-    lib_default = PathJoinSubstitution([
-        package_share,
-        "auto_generated",
-        "ridgeback_ur5",
     ])
 
     robot_description_content = Command([
@@ -51,11 +48,19 @@ def generate_launch_description():
     ])
 
     declared_arguments = [
-        DeclareLaunchArgument("taskFile", default_value=task_default, description="Path to the OCS2 task file."),
-        DeclareLaunchArgument("libFolder", default_value=lib_default, description="Folder for auto-generated OCS2 libraries."),
-        DeclareLaunchArgument("urdfFile", default_value=urdf_default, description="URDF passed to visualization nodes."),
-        DeclareLaunchArgument("futureTimeOffset", default_value="0.02", description="Lookahead time (s) when evaluating MPC policy."),
-        DeclareLaunchArgument("commandSmoothingAlpha", default_value="1.0", description="Blending factor for consecutive MPC commands."),
+        DeclareLaunchArgument("taskFile", default_value="", description="Path to the OCS2 task file."),
+        DeclareLaunchArgument("libFolder", default_value="", description="Folder for auto-generated OCS2 libraries."),
+        DeclareLaunchArgument("urdfFile", default_value="", description="URDF passed to visualization nodes."),
+        DeclareLaunchArgument(
+            "futureTimeOffset",
+            default_value=str(control_defaults.get("future_time_offset", 0.02)),
+            description="Lookahead time (s) when evaluating MPC policy.",
+        ),
+        DeclareLaunchArgument(
+            "commandSmoothingAlpha",
+            default_value=str(control_defaults.get("command_smoothing_alpha", 1.0)),
+            description="Blending factor for consecutive MPC commands.",
+        ),
     ]
 
     task_file = LaunchConfiguration("taskFile")

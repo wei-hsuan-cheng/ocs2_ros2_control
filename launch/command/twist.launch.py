@@ -1,47 +1,47 @@
+import os
+import yaml
+
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
+from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
-from launch_ros.substitutions import FindPackageShare
+from ament_index_python.packages import get_package_share_directory
+
+
+def _load_common_params():
+    params_path = os.path.join(
+        get_package_share_directory("ocs2_ros2_control"),
+        "config",
+        "common_params.yaml",
+    )
+    with open(params_path, "r") as f:
+        return yaml.safe_load(f)
+
+
+def _bool_to_str(value):
+    return "true" if value else "false"
 
 
 def generate_launch_description():
-    package_share = FindPackageShare("ocs2_ros2_control")
-
-    task_default = PathJoinSubstitution([
-        package_share,
-        "config",
-        "ridgeback_ur5",
-        "task.info",
-    ])
-
-    lib_default = PathJoinSubstitution([
-        package_share,
-        "auto_generated",
-        "ridgeback_ur5",
-    ])
-
-    urdf_default = PathJoinSubstitution([
-        package_share,
-        "description",
-        "urdf",
-        "ridgeback_ur5.urdf",
-    ])
+    params = _load_common_params()
+    twist_defaults = params.get("command", {}).get("twist", {})
+    vel_defaults = twist_defaults.get("velocity", {})
+    omega_defaults = twist_defaults.get("omega", {})
 
     declared_arguments = [
-        DeclareLaunchArgument("taskFile", default_value=task_default, description="Path to the OCS2 task file."),
-        DeclareLaunchArgument("libFolder", default_value=lib_default, description="Folder for auto-generated OCS2 libraries."),
-        DeclareLaunchArgument("urdfFile", default_value=urdf_default, description="URDF passed to visualization nodes."),
-        DeclareLaunchArgument("twistPublishRate", default_value="100.0", description="Twist target publish rate."),
-        DeclareLaunchArgument("twistHorizon", default_value="1.0", description="Twist target horizon (s)."),
-        DeclareLaunchArgument("twistDt", default_value="0.01", description="Twist discretization step (s)."),
-        DeclareLaunchArgument("twistInWorld", default_value="false", description="Interpret twist in world frame."),
-        DeclareLaunchArgument("twistVelX", default_value="0.0"),
-        DeclareLaunchArgument("twistVelY", default_value="0.0"),
-        DeclareLaunchArgument("twistVelZ", default_value="0.05"),
-        DeclareLaunchArgument("twistOmegaX", default_value="0.0"),
-        DeclareLaunchArgument("twistOmegaY", default_value="0.0"),
-        DeclareLaunchArgument("twistOmegaZ", default_value="0.0"),
+        DeclareLaunchArgument("taskFile", default_value="", description="Path to the OCS2 task file."),
+        DeclareLaunchArgument("libFolder", default_value="", description="Folder for auto-generated OCS2 libraries."),
+        DeclareLaunchArgument("urdfFile", default_value="", description="URDF passed to visualization nodes."),
+        DeclareLaunchArgument("twistPublishRate", default_value=str(twist_defaults.get("publish_rate", 20.0)), description="Twist target publish rate."),
+        DeclareLaunchArgument("twistHorizon", default_value=str(twist_defaults.get("horizon", 1.0)), description="Twist target horizon (s)."),
+        DeclareLaunchArgument("twistDt", default_value=str(twist_defaults.get("dt", 0.1)), description="Twist discretization step (s)."),
+        DeclareLaunchArgument("twistInWorld", default_value=_bool_to_str(twist_defaults.get("twist_in_world", True)), description="Interpret twist in world frame."),
+        DeclareLaunchArgument("twistVelX", default_value=str(vel_defaults.get("x", 0.0))),
+        DeclareLaunchArgument("twistVelY", default_value=str(vel_defaults.get("y", 0.0))),
+        DeclareLaunchArgument("twistVelZ", default_value=str(vel_defaults.get("z", 0.0))),
+        DeclareLaunchArgument("twistOmegaX", default_value=str(omega_defaults.get("x", 0.0))),
+        DeclareLaunchArgument("twistOmegaY", default_value=str(omega_defaults.get("y", 0.0))),
+        DeclareLaunchArgument("twistOmegaZ", default_value=str(omega_defaults.get("z", 0.0))),
     ]
 
     task_file = LaunchConfiguration("taskFile")
