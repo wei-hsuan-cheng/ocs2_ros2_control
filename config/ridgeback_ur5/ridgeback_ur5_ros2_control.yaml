@@ -19,7 +19,7 @@ ridgeback_base_controller:
     wheel_separation: 0.551
     wheel_radius: 0.0759
 
-    publish_rate: 50.0
+    publish_rate: 250.0
     odom_frame_id: odom
     base_frame_id: base_link
     pose_covariance_diagonal : [0.001, 0.001, 0.001, 0.001, 0.001, 0.01]
