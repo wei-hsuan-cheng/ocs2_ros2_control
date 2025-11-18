@@ -210,10 +210,12 @@ class TrajectoryTargetNode : public rclcpp::Node {
       marker.id = static_cast<int>(i);
       marker.type = visualization_msgs::msg::Marker::SPHERE;
       marker.action = visualization_msgs::msg::Marker::ADD;
-      marker.scale.x = marker.scale.y = marker.scale.z = 0.02;
-      marker.color.r = 0.0f;
-      marker.color.g = 1.0f;
-      marker.color.b = 0.0f;
+      marker.scale.x = marker.scale.y = marker.scale.z = 0.0025;
+      // const std::array<scalar_t, 3> targetTrajectoryColor{0.4660, 0.6740, 0.1880}; // green
+      // const std::array<scalar_t, 3> targetTrajectoryColor{0.9290, 0.6940, 0.1250}; // orange
+      marker.color.r = 0.4660f;
+      marker.color.g = 0.6740f;
+      marker.color.b = 0.1880f;
       marker.color.a = 1.0f;
       marker.pose.position = ros_msg_helpers::getPointMsg(traj.stateTrajectory[i].head<3>());
       const auto quat_vec = traj.stateTrajectory[i].tail<4>();
