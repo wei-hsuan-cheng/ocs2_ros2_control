@@ -149,7 +149,4 @@ def generate_launch_description():
     return LaunchDescription(declared_arguments + [
         control_node,
         load_controller,
-        # joint_state_broadcaster,
-        # diff_drive_spawner,
-        # ocs2_controller_spawner,
     ])
