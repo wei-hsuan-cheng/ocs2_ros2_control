@@ -18,10 +18,28 @@ def _load_common_params():
         return yaml.safe_load(f)
 
 
+def _load_default_frame_from_robot_config():
+    cfg_share = get_package_share_directory("ocs2_ros2_control")
+    cfg_path = os.path.join(cfg_share, "config", "ridgeback_ur5", "ridgeback_ur5_ros2_control.yaml")
+    default_frame = "odom"
+    try:
+        with open(cfg_path, "r") as f:
+            diff_cfg = yaml.safe_load(f) or {}
+        default_frame = (
+            diff_cfg.get("ridgeback_base_controller", {})
+            .get("ros__parameters", {})
+            .get("odom_frame_id", default_frame)
+        )
+    except Exception:
+        default_frame = "odom"
+    return default_frame
+
+
 def generate_launch_description():
     params = _load_common_params()
     trajectory_defaults = params.get("command", {}).get("trajectory", {})
     axis_defaults = trajectory_defaults.get("axis", {})
+    default_frame = _load_default_frame_from_robot_config()
 
     declared_arguments = [
         DeclareLaunchArgument("taskFile", default_value="", description="Path to the OCS2 task file."),
@@ -36,6 +54,11 @@ def generate_launch_description():
         DeclareLaunchArgument("trajectoryAxisX", default_value=str(axis_defaults.get("x", 1.0))),
         DeclareLaunchArgument("trajectoryAxisY", default_value=str(axis_defaults.get("y", 0.0))),
         DeclareLaunchArgument("trajectoryAxisZ", default_value=str(axis_defaults.get("z", 1.0))),
+        DeclareLaunchArgument(
+            "trajectoryFrame",
+            default_value=str(default_frame),
+            description="Frame used for trajectory target markers.",
+        ),
     ]
 
     task_file = LaunchConfiguration("taskFile")
@@ -58,6 +81,7 @@ def generate_launch_description():
             "axisX": LaunchConfiguration("trajectoryAxisX"),
             "axisY": LaunchConfiguration("trajectoryAxisY"),
             "axisZ": LaunchConfiguration("trajectoryAxisZ"),
+            "frameId": LaunchConfiguration("trajectoryFrame"),
         }],
         output="screen",
     )

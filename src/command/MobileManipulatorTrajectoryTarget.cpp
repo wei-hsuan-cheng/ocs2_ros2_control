@@ -102,6 +102,7 @@ class TrajectoryTargetNode : public rclcpp::Node {
     this->declare_parameter<double>("axisX", 0.0);
     this->declare_parameter<double>("axisY", 0.0);
     this->declare_parameter<double>("axisZ", 1.0);
+    this->declare_parameter<std::string>("frameId", std::string("odom"));
 
     taskFile_ = this->get_parameter("taskFile").as_string();
     urdfFile_ = this->get_parameter("urdfFile").as_string();
@@ -118,6 +119,7 @@ class TrajectoryTargetNode : public rclcpp::Node {
     axis_.z() = this->get_parameter("axisZ").as_double();
     if (axis_.norm() < 1e-9) axis_ = Eigen::Vector3d::UnitZ();
     axis_.normalize();
+    frame_id_ = this->get_parameter("frameId").as_string();
 
     if (!taskFile_.empty() && !urdfFile_.empty() && !libFolder_.empty()) {
       try {
@@ -198,13 +200,13 @@ class TrajectoryTargetNode : public rclcpp::Node {
     visualization_msgs::msg::MarkerArray markerArray;
     markerArray.markers.reserve(traj.size());
     geometry_msgs::msg::PoseArray poseArray;
-    poseArray.header.frame_id = "world";
+    poseArray.header.frame_id = frame_id_;
     poseArray.header.stamp = this->now();
     poseArray.poses.reserve(traj.size());
 
     for (size_t i = 0; i < traj.size(); ++i) {
       visualization_msgs::msg::Marker marker;
-      marker.header.frame_id = "world";
+      marker.header.frame_id = frame_id_;
       marker.header.stamp = this->now();
       marker.ns = "target_state";
       marker.id = static_cast<int>(i);
@@ -236,6 +238,7 @@ class TrajectoryTargetNode : public rclcpp::Node {
   Params params_;
   Eigen::Vector3d axis_{0, 0, 1};
   std::string taskFile_, urdfFile_, libFolder_, robotName_;
+  std::string frame_id_{"odom"};
 
   std::unique_ptr<MobileManipulatorInterface> interface_;
 

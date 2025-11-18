@@ -12,6 +12,8 @@
 #include <pluginlib/class_list_macros.hpp>
 #include <rclcpp/logging.hpp>
 #include <ament_index_cpp/get_package_share_directory.hpp>
+#include <geometry_msgs/msg/twist.hpp>
+#include <nav_msgs/msg/odometry.hpp>
 
 using ocs2::vector_t;
 using ocs2::scalar_t;
@@ -75,6 +77,7 @@ controller_interface::CallbackReturn Ocs2Ros2Controller::on_init() {
   declareParameterIfNotDeclared<std::string>("urdf_file", default_urdf);
   declareParameterIfNotDeclared<double>("future_time_offset", future_time_offset_);
   declareParameterIfNotDeclared<double>("command_smoothing_alpha", command_smoothing_alpha_);
+  declareParameterIfNotDeclared<std::string>("world_frame", world_frame_);
   declareParameterIfNotDeclared<std::vector<std::string>>("arm_joints", arm_joint_names_);
 
   return controller_interface::CallbackReturn::SUCCESS;
@@ -87,6 +90,7 @@ controller_interface::CallbackReturn Ocs2Ros2Controller::on_configure(const rclc
   urdf_file_ = node->get_parameter("urdf_file").as_string();
   future_time_offset_ = node->get_parameter("future_time_offset").as_double();
   command_smoothing_alpha_ = node->get_parameter("command_smoothing_alpha").as_double();
+  world_frame_ = node->get_parameter("world_frame").as_string();
   arm_joint_names_ = node->get_parameter("arm_joints").as_string_array();
   command_smoothing_alpha_ = std::max(0.0, std::min(1.0, command_smoothing_alpha_));
 
@@ -105,7 +109,7 @@ controller_interface::CallbackReturn Ocs2Ros2Controller::on_configure(const rclc
   }
   try {
     visualization_node_ = std::make_shared<rclcpp::Node>(node->get_name() + std::string("_visualizer"), node->get_namespace());
-    visualization_ = std::make_unique<MobileManipulatorVisualization>(visualization_node_, *interface_, task_file_, urdf_file_);
+    visualization_ = std::make_unique<MobileManipulatorVisualization>(visualization_node_, *interface_, task_file_, urdf_file_, world_frame_);
   } catch (const std::exception &e) {
     RCLCPP_WARN(node->get_logger(), "Failed to initialize visualization: %s", e.what());
     visualization_.reset();
@@ -142,6 +146,20 @@ controller_interface::CallbackReturn Ocs2Ros2Controller::on_configure(const rclc
   mpc_reset_done_ = false;
   handles_initialized_ = false;
 
+  // Base twist publisher and odometry subscriber for diff-drive integration
+  base_cmd_pub_ = node->create_publisher<geometry_msgs::msg::TwistStamped>("cmd_vel", rclcpp::SystemDefaultsQoS());
+  odom_sub_ = node->create_subscription<nav_msgs::msg::Odometry>(
+      "odom", rclcpp::SystemDefaultsQoS(),
+      [this](const nav_msgs::msg::Odometry::SharedPtr msg) {
+        std::lock_guard<std::mutex> lock(odom_mutex_);
+        base_pose_from_odom_[0] = msg->pose.pose.position.x;
+        base_pose_from_odom_[1] = msg->pose.pose.position.y;
+        const auto &q = msg->pose.pose.orientation;
+        const double siny_cosp = 2.0 * (q.w * q.z + q.x * q.y);
+        const double cosy_cosp = 1.0 - 2.0 * (q.y * q.y + q.z * q.z);
+        base_pose_from_odom_[2] = std::atan2(siny_cosp, cosy_cosp);
+      });
+
   RCLCPP_INFO(node->get_logger(), "Configured OCS2 controller (stateDim=%zu, inputDim=%zu).", state_dim_, input_dim_);
 
   return controller_interface::CallbackReturn::SUCCESS;
@@ -172,8 +190,6 @@ controller_interface::CallbackReturn Ocs2Ros2Controller::on_deactivate(const rcl
 controller_interface::InterfaceConfiguration Ocs2Ros2Controller::command_interface_configuration() const {
   controller_interface::InterfaceConfiguration config;
   config.type = controller_interface::interface_configuration_type::INDIVIDUAL;
-  config.names.push_back(std::string("base_forward_joint/") + hardware_interface::HW_IF_VELOCITY);
-  config.names.push_back(std::string("base_yaw_joint/") + hardware_interface::HW_IF_VELOCITY);
   for (const auto &joint : arm_joint_names_) {
     config.names.push_back(joint + std::string("/") + hardware_interface::HW_IF_VELOCITY);
   }
@@ -183,12 +199,6 @@ controller_interface::InterfaceConfiguration Ocs2Ros2Controller::command_interfa
 controller_interface::InterfaceConfiguration Ocs2Ros2Controller::state_interface_configuration() const {
   controller_interface::InterfaceConfiguration config;
   config.type = controller_interface::interface_configuration_type::INDIVIDUAL;
-  config.names.push_back(std::string("base_x_joint/") + hardware_interface::HW_IF_POSITION);
-  config.names.push_back(std::string("base_y_joint/") + hardware_interface::HW_IF_POSITION);
-  config.names.push_back(std::string("base_yaw_joint/") + hardware_interface::HW_IF_POSITION);
-  config.names.push_back(std::string("base_forward_joint/") + hardware_interface::HW_IF_VELOCITY);
-  config.names.push_back(std::string("base_yaw_joint/") + hardware_interface::HW_IF_VELOCITY);
-
   for (const auto &joint : arm_joint_names_) {
     config.names.push_back(joint + std::string("/") + hardware_interface::HW_IF_POSITION);
     config.names.push_back(joint + std::string("/") + hardware_interface::HW_IF_VELOCITY);
@@ -220,11 +230,16 @@ SystemObservation Ocs2Ros2Controller::buildObservation(const rclcpp::Time &time)
   obs.mode = 0;
 
   // Update OCS2 state from current robot feedback state
-  // Base (3-DoFs)
-  obs.state(0) = base_x_state_ ? base_x_state_->get_value() : 0.0;
-  obs.state(1) = base_y_state_ ? base_y_state_->get_value() : 0.0;
-  obs.state(2) = base_yaw_state_ ? base_yaw_state_->get_value() : 0.0;
-  // Arm (n-DoFs)
+  // Base pose (x, y, yaw) is provided from odometry; arm joints from hardware.
+  {
+    std::lock_guard<std::mutex> lock(odom_mutex_);
+    if (state_dim_ >= 3) {
+      obs.state(0) = base_pose_from_odom_[0];
+      obs.state(1) = base_pose_from_odom_[1];
+      obs.state(2) = base_pose_from_odom_[2];
+    }
+  }
+
   for (size_t idx = 0; idx < arm_joint_names_.size(); ++idx) {
     obs.state(3 + idx) = joint_position_states_[idx]->get_value();
   }
@@ -240,13 +255,19 @@ void Ocs2Ros2Controller::applyCommand(const vector_t &command) {
     return;
   }
 
-  if (base_forward_command_) {
-    base_forward_command_->set_value(command(0));
-  }
-  if (base_yaw_command_) {
-    base_yaw_command_->set_value(command(1));
+  // Publish base twist command for diff-drive controller
+  if (base_cmd_pub_) {
+    auto node = get_node();
+    geometry_msgs::msg::TwistStamped msg;
+    msg.header.stamp = node->get_clock()->now();
+    msg.header.frame_id = "base_link";
+    msg.twist.linear.x = command(0);
+    msg.twist.linear.y = 0.0;
+    msg.twist.angular.z = command(1);
+    base_cmd_pub_->publish(msg);
   }
 
+  // Arm joints
   for (size_t idx = 0; idx < arm_joint_names_.size(); ++idx) {
     if (joint_velocity_commands_[idx]) {
       joint_velocity_commands_[idx]->set_value(command(2 + idx));
@@ -355,29 +376,10 @@ bool Ocs2Ros2Controller::initializeHandles() {
     return nullptr;
   };
 
-  base_x_state_ = find_state("base_x_joint", hardware_interface::HW_IF_POSITION);
-  base_y_state_ = find_state("base_y_joint", hardware_interface::HW_IF_POSITION);
-  base_yaw_state_ = find_state("base_yaw_joint", hardware_interface::HW_IF_POSITION);
-  base_forward_velocity_state_ = find_state("base_forward_joint", hardware_interface::HW_IF_VELOCITY);
-  base_yaw_velocity_state_ = find_state("base_yaw_joint", hardware_interface::HW_IF_VELOCITY);
-  base_forward_command_ = find_command("base_forward_joint", hardware_interface::HW_IF_VELOCITY);
-  base_yaw_command_ = find_command("base_yaw_joint", hardware_interface::HW_IF_VELOCITY);
-
   joint_position_states_.clear();
   joint_velocity_commands_.clear();
 
-  bool ok = base_x_state_ && base_y_state_ && base_yaw_state_ && base_forward_command_ && base_yaw_command_;
-
-  if (!ok) {
-    RCLCPP_ERROR(get_node()->get_logger(), "Base interfaces missing. Available state interfaces:");
-    for (auto &state : state_interfaces_) {
-      RCLCPP_ERROR(get_node()->get_logger(), "  %s/%s", state.get_name().c_str(), state.get_interface_name().c_str());
-    }
-    RCLCPP_ERROR(get_node()->get_logger(), "Available command interfaces:");
-    for (auto &cmd : command_interfaces_) {
-      RCLCPP_ERROR(get_node()->get_logger(), "  %s/%s", cmd.get_name().c_str(), cmd.get_interface_name().c_str());
-    }
-  }
+  bool ok = true;
 
   for (const auto &joint : arm_joint_names_) {
     auto *pos = find_state(joint, hardware_interface::HW_IF_POSITION);

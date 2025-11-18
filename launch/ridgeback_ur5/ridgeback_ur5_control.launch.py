@@ -24,6 +24,25 @@ def generate_launch_description():
     params = _load_common_params()
     control_defaults = params.get("control", {})
 
+    # Load default global frame from the diff-drive controller config (odom_frame_id),
+    # so changing it in the YAML propagates automatically.
+    cfg_share = get_package_share_directory("ocs2_ros2_control")
+    diff_drive_cfg_path = os.path.join(
+        cfg_share, "config", "ridgeback_ur5", "ridgeback_ur5_ros2_control.yaml"
+    )
+    default_world_frame = "odom"
+    try:
+        with open(diff_drive_cfg_path, "r") as f:
+            diff_cfg = yaml.safe_load(f) or {}
+        default_world_frame = (
+            diff_cfg.get("ridgeback_base_controller", {})
+            .get("ros__parameters", {})
+            .get("odom_frame_id", default_world_frame)
+        )
+    except Exception:
+        # Fall back to "odom" if config is missing or malformed.
+        default_world_frame = "odom"
+
     package_share = FindPackageShare("ocs2_ros2_control")
 
     control_urdf = PathJoinSubstitution([
@@ -61,6 +80,11 @@ def generate_launch_description():
             default_value=str(control_defaults.get("command_smoothing_alpha", 1.0)),
             description="Blending factor for consecutive MPC commands.",
         ),
+        DeclareLaunchArgument(
+            "worldFrame",
+            default_value=str(default_world_frame),
+            description="Global frame used for odometry and OCS2 visualization.",
+        ),
     ]
 
     task_file = LaunchConfiguration("taskFile")
@@ -68,6 +92,7 @@ def generate_launch_description():
     urdf_file = LaunchConfiguration("urdfFile")
     future_time_offset = LaunchConfiguration("futureTimeOffset")
     command_smoothing_alpha = LaunchConfiguration("commandSmoothingAlpha")
+    world_frame = LaunchConfiguration("worldFrame")
 
     ocs2_params = {
         "controller_manager.ros__parameters.ocs2_controller.ros__parameters.task_file": task_file,
@@ -75,6 +100,8 @@ def generate_launch_description():
         "controller_manager.ros__parameters.ocs2_controller.ros__parameters.urdf_file": urdf_file,
         "controller_manager.ros__parameters.ocs2_controller.ros__parameters.future_time_offset": future_time_offset,
         "controller_manager.ros__parameters.ocs2_controller.ros__parameters.command_smoothing_alpha": command_smoothing_alpha,
+        "controller_manager.ros__parameters.ocs2_controller.ros__parameters.world_frame": world_frame,
+        "controller_manager.ros__parameters.ridgeback_base_controller.ros__parameters.odom_frame_id": world_frame,
     }
 
     control_node = Node(
@@ -82,12 +109,23 @@ def generate_launch_description():
         executable="ros2_control_node",
         parameters=[robot_description, controller_config, ocs2_params],
         output="both",
+        remappings=[
+            ("~/robot_description", "/robot_description"),
+            ("/ridgeback_base_controller/cmd_vel", "/cmd_vel"),
+            ("/ridgeback_base_controller/odom", "/odom"),
+        ],
     )
 
     ocs2_controller_spawner = Node(
         package="controller_manager",
         executable="spawner",
         arguments=["ocs2_controller", "--controller-manager", "/controller_manager"],
+    )
+
+    diff_drive_spawner = Node(
+        package="controller_manager",
+        executable="spawner",
+        arguments=["ridgeback_base_controller", "--controller-manager", "/controller_manager"],
     )
 
     joint_state_broadcaster = Node(
@@ -99,5 +137,6 @@ def generate_launch_description():
     return LaunchDescription(declared_arguments + [
         control_node,
         joint_state_broadcaster,
+        diff_drive_spawner,
         ocs2_controller_spawner,
     ])

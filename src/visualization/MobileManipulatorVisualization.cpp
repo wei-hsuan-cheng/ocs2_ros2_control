@@ -41,12 +41,13 @@ constexpr std::array<double, 3> kEeTrajectoryColor{0.0, 0.4470, 0.7410};
 MobileManipulatorVisualization::MobileManipulatorVisualization(const rclcpp::Node::SharedPtr &node,
                                                                const MobileManipulatorInterface &interface,
                                                                const std::string &task_file,
-                                                               const std::string &urdf_file)
+                                                               const std::string &urdf_file,
+                                                               const std::string &world_frame)
     : node_(node),
       pinocchio_interface_(interface.getPinocchioInterface()),
       model_info_(interface.getManipulatorModelInfo()),
-      tf_broadcaster_(std::make_unique<tf2_ros::TransformBroadcaster>(node)) {
-  world_frame_ = node_->declare_parameter<std::string>("world_frame", "world");
+      tf_broadcaster_(std::make_unique<tf2_ros::TransformBroadcaster>(node)),
+      world_frame_(world_frame) {
   launchVisualizerNode(task_file, urdf_file);
 }
 
@@ -70,7 +71,8 @@ void MobileManipulatorVisualization::launchVisualizerNode(const std::string &tas
     std::vector<std::pair<size_t, size_t>> collision_pairs;
     ocs2::loadData::loadStdVectorOfPair(task_file, "selfCollision.collisionObjectPairs", collision_pairs, true);
     ocs2::PinocchioGeometryInterface geom_interface(viz_pinocchio, collision_pairs);
-    geometry_visualization_ = std::make_unique<GeometryInterfaceVisualization>(std::move(viz_pinocchio), std::move(geom_interface));
+    geometry_visualization_ = std::make_unique<GeometryInterfaceVisualization>(
+        std::move(viz_pinocchio), std::move(geom_interface), world_frame_);
   }
 }
 
@@ -80,7 +82,7 @@ void MobileManipulatorVisualization::publishTargetTrajectories(const rclcpp::Tim
     return;
   }
   geometry_msgs::msg::PoseStamped target_pose;
-  target_pose.header = ocs2::ros_msg_helpers::getHeaderMsg("world", time_stamp);
+  target_pose.header = ocs2::ros_msg_helpers::getHeaderMsg(world_frame_, time_stamp);
   const auto &desired_state = target.stateTrajectory.back();
   target_pose.pose.position = ocs2::ros_msg_helpers::getPointMsg(desired_state.head<3>());
   Eigen::Quaterniond desired_orientation;
@@ -151,7 +153,7 @@ void MobileManipulatorVisualization::publishOptimizedTrajectory(const rclcpp::Ti
       ocs2::ros_msg_helpers::getLineMsg(std::move(ee_trajectory), kEeTrajectoryColor, kTrajectoryLineWidth));
   marker_array.markers.back().ns = "EE Trajectory";
 
-  pose_array.header = ocs2::ros_msg_helpers::getHeaderMsg("world", time_stamp);
+  pose_array.header = ocs2::ros_msg_helpers::getHeaderMsg(world_frame_, time_stamp);
   assignHeader(marker_array.markers.begin(), marker_array.markers.end(), pose_array.header);
   assignIncreasingId(marker_array.markers.begin(), marker_array.markers.end());
 
@@ -164,7 +166,6 @@ void MobileManipulatorVisualization::update(const ocs2::vector_t &current_state,
                                             const CommandData &command) {
   const auto stamp = node_->get_clock()->now();
 
-  publishBaseTransform(stamp, current_state);
   publishTargetTrajectories(stamp, command.mpcTargetTrajectories_);
   publishOptimizedTrajectory(stamp, policy);
 
@@ -182,7 +183,9 @@ void MobileManipulatorVisualization::publishBaseTransform(const rclcpp::Time &ti
 
   geometry_msgs::msg::TransformStamped base_tf;
   base_tf.header = ocs2::ros_msg_helpers::getHeaderMsg(world_frame_, time_stamp);
-  base_tf.child_frame_id = model_info_.baseFrame.empty() ? "base_link" : model_info_.baseFrame;
+  // Publish an OCS2-specific base frame to avoid conflicting with diff_drive's odom->base_link TF.
+  const std::string base_frame = model_info_.baseFrame.empty() ? "base_link" : model_info_.baseFrame;
+  base_tf.child_frame_id = base_frame + "_ocs2";
   base_tf.transform.translation = ocs2::ros_msg_helpers::getVectorMsg(base_position);
   base_tf.transform.rotation = ocs2::ros_msg_helpers::getOrientationMsg(base_orientation);
   tf_broadcaster_->sendTransform(base_tf);

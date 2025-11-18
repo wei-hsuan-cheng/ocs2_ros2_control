@@ -29,12 +29,6 @@ CallbackReturn RidgebackUr5Hardware::on_init(const hardware_interface::HardwareI
   if (auto it = info_.hardware_parameters.find("max_joint_velocity"); it != info_.hardware_parameters.end()) {
     max_joint_velocity_ = std::stod(it->second);
   }
-  if (auto it = info_.hardware_parameters.find("max_base_velocity"); it != info_.hardware_parameters.end()) {
-    max_base_velocity_ = std::stod(it->second);
-  }
-  if (auto it = info_.hardware_parameters.find("max_yaw_velocity"); it != info_.hardware_parameters.end()) {
-    max_yaw_velocity_ = std::stod(it->second);
-  }
   if (auto it = info_.hardware_parameters.find("initial_pose_file"); it != info_.hardware_parameters.end()) {
     initial_pose_file_ = it->second;
   }
@@ -51,21 +45,8 @@ CallbackReturn RidgebackUr5Hardware::on_init(const hardware_interface::HardwareI
     return values;
   };
 
-  if (auto it = info_.hardware_parameters.find("initial_base_pose"); it != info_.hardware_parameters.end()) {
-    const auto values = parse_double_list(it->second);
-    if (values.size() == 3) {
-      initial_base_pose_ = {values[0], values[1], values[2]};
-    } else if (!values.empty()) {
-      RCLCPP_WARN(rclcpp::get_logger("RidgebackUr5Hardware"),
-                  "initial_base_pose expects 3 values, got %zu. Using defaults.", values.size());
-    }
-  }
-
   joint_names_.clear();
   for (const auto &joint : info_.joints) {
-    if (joint.name == BASE_FORWARD_JOINT || joint.name == BASE_YAW_JOINT || joint.name == BASE_X_JOINT || joint.name == BASE_Y_JOINT) {
-      continue;
-    }
     joint_names_.push_back(joint.name);
   }
 
@@ -95,12 +76,6 @@ CallbackReturn RidgebackUr5Hardware::on_init(const hardware_interface::HardwareI
 
 std::vector<StateInterface> RidgebackUr5Hardware::export_state_interfaces() {
   std::vector<StateInterface> state_interfaces;
-  state_interfaces.emplace_back(BASE_X_JOINT, hardware_interface::HW_IF_POSITION, &base_pose_[0]);
-  state_interfaces.emplace_back(BASE_Y_JOINT, hardware_interface::HW_IF_POSITION, &base_pose_[1]);
-  state_interfaces.emplace_back(BASE_YAW_JOINT, hardware_interface::HW_IF_POSITION, &base_pose_[2]);
-  state_interfaces.emplace_back(BASE_FORWARD_JOINT, hardware_interface::HW_IF_VELOCITY, &base_velocity_state_[0]);
-  state_interfaces.emplace_back(BASE_YAW_JOINT, hardware_interface::HW_IF_VELOCITY, &base_velocity_state_[1]);
-
   for (size_t idx = 0; idx < joint_names_.size(); ++idx) {
     state_interfaces.emplace_back(joint_names_[idx], hardware_interface::HW_IF_POSITION, &joint_positions_[idx]);
     state_interfaces.emplace_back(joint_names_[idx], hardware_interface::HW_IF_VELOCITY, &joint_velocities_[idx]);
@@ -111,9 +86,6 @@ std::vector<StateInterface> RidgebackUr5Hardware::export_state_interfaces() {
 
 std::vector<CommandInterface> RidgebackUr5Hardware::export_command_interfaces() {
   std::vector<CommandInterface> command_interfaces;
-  command_interfaces.emplace_back(BASE_FORWARD_JOINT, hardware_interface::HW_IF_VELOCITY, &base_velocity_command_[0]);
-  command_interfaces.emplace_back(BASE_YAW_JOINT, hardware_interface::HW_IF_VELOCITY, &base_velocity_command_[1]);
-
   for (size_t idx = 0; idx < joint_names_.size(); ++idx) {
     command_interfaces.emplace_back(joint_names_[idx], hardware_interface::HW_IF_POSITION, &joint_position_commands_[idx]);
     command_interfaces.emplace_back(joint_names_[idx], hardware_interface::HW_IF_VELOCITY, &joint_velocity_commands_[idx]);
@@ -123,9 +95,6 @@ std::vector<CommandInterface> RidgebackUr5Hardware::export_command_interfaces() 
 }
 
 CallbackReturn RidgebackUr5Hardware::on_activate(const rclcpp_lifecycle::State &) {
-  base_pose_ = initial_base_pose_;
-  std::fill(base_velocity_state_.begin(), base_velocity_state_.end(), 0.0);
-  std::fill(base_velocity_command_.begin(), base_velocity_command_.end(), 0.0);
   joint_positions_ = initial_joint_positions_;
   std::fill(joint_velocities_.begin(), joint_velocities_.end(), 0.0);
   std::fill(joint_velocity_commands_.begin(), joint_velocity_commands_.end(), 0.0);
@@ -139,7 +108,6 @@ CallbackReturn RidgebackUr5Hardware::on_deactivate(const rclcpp_lifecycle::State
 }
 
 return_type RidgebackUr5Hardware::read(const rclcpp::Time &, const rclcpp::Duration &period) {
-  integrateBase(period);
   integrateArm(period);
   return return_type::OK;
 }
@@ -147,19 +115,6 @@ return_type RidgebackUr5Hardware::read(const rclcpp::Time &, const rclcpp::Durat
 return_type RidgebackUr5Hardware::write(const rclcpp::Time &, const rclcpp::Duration &) {
   // Commands are applied directly via pointers; nothing to do here.
   return return_type::OK;
-}
-
-void RidgebackUr5Hardware::integrateBase(const rclcpp::Duration &period) {
-  const double dt = period.seconds();
-  const double v = std::clamp(base_velocity_command_[0], -max_base_velocity_, max_base_velocity_);
-  const double w = std::clamp(base_velocity_command_[1], -max_yaw_velocity_, max_yaw_velocity_);
-  base_velocity_state_[0] = v;
-  base_velocity_state_[1] = w;
-
-  base_pose_[2] += w * dt;
-  base_pose_[2] = std::atan2(std::sin(base_pose_[2]), std::cos(base_pose_[2]));
-  base_pose_[0] += std::cos(base_pose_[2]) * v * dt;
-  base_pose_[1] += std::sin(base_pose_[2]) * v * dt;
 }
 
 void RidgebackUr5Hardware::integrateArm(const rclcpp::Duration &period) {
@@ -175,20 +130,6 @@ void RidgebackUr5Hardware::integrateArm(const rclcpp::Duration &period) {
 void RidgebackUr5Hardware::loadInitialPoseFromFile(const std::string &path) {
   try {
     const auto node = YAML::LoadFile(path);
-    if (node["base_pose"]) {
-      const auto base = node["base_pose"];
-      if (base.IsSequence() && base.size() == 3) {
-        initial_base_pose_ = {base[0].as<double>(), base[1].as<double>(), base[2].as<double>()};
-      } else if (base.IsMap()) {
-        initial_base_pose_[0] = base["x"].as<double>(initial_base_pose_[0]);
-        initial_base_pose_[1] = base["y"].as<double>(initial_base_pose_[1]);
-        initial_base_pose_[2] = base["yaw"].as<double>(initial_base_pose_[2]);
-      } else {
-        RCLCPP_WARN(rclcpp::get_logger("RidgebackUr5Hardware"),
-                    "base_pose entry in %s must be sequence of 3 or map.", path.c_str());
-      }
-    }
-
     if (node["arm_joints"]) {
       const auto joints = node["arm_joints"];
       if (joints.IsMap()) {

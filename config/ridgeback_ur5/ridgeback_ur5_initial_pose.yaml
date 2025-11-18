@@ -1,7 +1,3 @@
-base_pose:
-  x: 0.0
-  y: 0.0
-  yaw: 0.0
 arm_joints:
   ur_arm_shoulder_pan_joint: 0.0
   ur_arm_shoulder_lift_joint: -1.5708

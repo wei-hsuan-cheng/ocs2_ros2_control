@@ -29,7 +29,8 @@ public:
   MobileManipulatorVisualization(const rclcpp::Node::SharedPtr &node,
                                  const ocs2::mobile_manipulator::MobileManipulatorInterface &interface,
                                  const std::string &task_file,
-                                 const std::string &urdf_file);
+                                 const std::string &urdf_file,
+                                 const std::string &world_frame);
 
   void update(const ocs2::vector_t &current_state,
               const ocs2::PrimalSolution &policy,

@@ -44,22 +44,9 @@ private:
   std::vector<double> joint_position_commands_;
   std::vector<double> initial_joint_positions_;
 
-  // Base state
-  std::array<double, 3> base_pose_{0.0, 0.0, 0.0};        // x, y, yaw
-  std::array<double, 2> base_velocity_state_{0.0, 0.0};   // v, w
-  std::array<double, 2> base_velocity_command_{0.0, 0.0}; // v, w command
-  std::array<double, 3> initial_base_pose_{0.0, 0.0, 0.0};
   std::string initial_pose_file_;
 
   double max_joint_velocity_{2.0};
-  double max_base_velocity_{1.0};
-  double max_yaw_velocity_{1.0};
-
-  // Names used inside ros2_control URDF
-  static constexpr const char *BASE_FORWARD_JOINT = "base_forward_joint";
-  static constexpr const char *BASE_YAW_JOINT = "base_yaw_joint";
-  static constexpr const char *BASE_X_JOINT = "base_x_joint";
-  static constexpr const char *BASE_Y_JOINT = "base_y_joint";
 };
 
 } // namespace ocs2_ros2_control

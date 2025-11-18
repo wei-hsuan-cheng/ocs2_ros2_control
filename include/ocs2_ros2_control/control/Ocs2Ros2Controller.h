@@ -3,6 +3,8 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <array>
+#include <mutex>
 
 #include <controller_interface/controller_interface.hpp>
 #include <hardware_interface/loaned_command_interface.hpp>
@@ -10,6 +12,8 @@
 #include <rclcpp_lifecycle/node_interfaces/lifecycle_node_interface.hpp>
 #include <rclcpp/node.hpp>
 #include <ament_index_cpp/get_package_share_directory.hpp>
+#include <geometry_msgs/msg/twist_stamped.hpp>
+#include <nav_msgs/msg/odometry.hpp>
 
 #include <ocs2_core/Types.h>
 #include <ocs2_mpc/SystemObservation.h>
@@ -46,18 +50,12 @@ private:
   ocs2::TargetTrajectories computeInitialTarget(const ocs2::vector_t &state, double time) const;
 
   std::vector<std::string> arm_joint_names_;
+  std::string world_frame_{"odom"};
 
   // State handles
-  hardware_interface::LoanedStateInterface *base_x_state_{nullptr};
-  hardware_interface::LoanedStateInterface *base_y_state_{nullptr};
-  hardware_interface::LoanedStateInterface *base_yaw_state_{nullptr};
-  hardware_interface::LoanedStateInterface *base_forward_velocity_state_{nullptr};
-  hardware_interface::LoanedStateInterface *base_yaw_velocity_state_{nullptr};
   std::vector<hardware_interface::LoanedStateInterface *> joint_position_states_;
 
   // Command handles
-  hardware_interface::LoanedCommandInterface *base_forward_command_{nullptr};
-  hardware_interface::LoanedCommandInterface *base_yaw_command_{nullptr};
   std::vector<hardware_interface::LoanedCommandInterface *> joint_velocity_commands_;
 
   // OCS2 components
@@ -67,6 +65,12 @@ private:
   ocs2::vector_t last_command_;
   ocs2::SystemObservation initial_observation_;
   ocs2::TargetTrajectories initial_target_;
+
+  // Base twist / odometry interfaces
+  rclcpp::Publisher<geometry_msgs::msg::TwistStamped>::SharedPtr base_cmd_pub_;
+  rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_;
+  mutable std::mutex odom_mutex_;
+  std::array<double, 3> base_pose_from_odom_{0.0, 0.0, 0.0};
 
   // Parameters
   std::string task_file_;

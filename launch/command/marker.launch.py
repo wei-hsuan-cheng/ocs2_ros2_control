@@ -19,6 +19,23 @@ def _load_common_params():
         return yaml.safe_load(f)
 
 
+def _load_default_frame_from_robot_config():
+    cfg_share = get_package_share_directory("ocs2_ros2_control")
+    cfg_path = os.path.join(cfg_share, "config", "ridgeback_ur5", "ridgeback_ur5_ros2_control.yaml")
+    default_frame = "odom"
+    try:
+        with open(cfg_path, "r") as f:
+            diff_cfg = yaml.safe_load(f) or {}
+        default_frame = (
+            diff_cfg.get("ridgeback_base_controller", {})
+            .get("ros__parameters", {})
+            .get("odom_frame_id", default_frame)
+        )
+    except Exception:
+        default_frame = "odom"
+    return default_frame
+
+
 def _bool_to_str(value):
     return "true" if value else "false"
 
@@ -26,6 +43,7 @@ def _bool_to_str(value):
 def generate_launch_description():
     params = _load_common_params()
     marker_defaults = params.get("command", {}).get("marker", {})
+    default_frame = _load_default_frame_from_robot_config()
 
     package_share = FindPackageShare("ocs2_ros2_control")
 
@@ -56,6 +74,11 @@ def generate_launch_description():
             default_value=_bool_to_str(marker_defaults.get("enable_auto_position", False)),
             description="Enable automatic marker repositioning.",
         ),
+        DeclareLaunchArgument(
+            "markerFrame",
+            default_value=str(default_frame),
+            description="Frame used for the interactive marker.",
+        ),
     ]
 
     task_file = LaunchConfiguration("taskFile")
@@ -75,6 +98,7 @@ def generate_launch_description():
             "markerPublishRate": LaunchConfiguration("markerPublishRate"),
             "enableJoystick": LaunchConfiguration("enableJoystick"),
             "enableAutoPosition": LaunchConfiguration("enableAutoPosition"),
+            "markerFrame": LaunchConfiguration("markerFrame"),
         }],
         output="screen",
     )

@@ -17,6 +17,7 @@ find_package(ocs2_ros_interfaces REQUIRED)
 find_package(ocs2_mobile_manipulator REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(geometry_msgs REQUIRED)
+find_package(nav_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
 find_package(ocs2_self_collision_visualization REQUIRED)
 find_package(xacro REQUIRED)
@@ -51,6 +52,7 @@ ament_target_dependencies(${PROJECT_NAME}
   ocs2_mobile_manipulator
   tf2_ros
   geometry_msgs
+  nav_msgs
   visualization_msgs
   ocs2_self_collision_visualization
   xacro

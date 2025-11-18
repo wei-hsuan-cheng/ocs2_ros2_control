@@ -197,7 +197,16 @@ int main(int argc, char* argv[]) {
       RCLCPP_INFO(node->get_logger(), "enableDynamicFrame parameter not found, using default: false");
   }
 
-  std::string markerFrame = enableDynamicFrame ? getMarkerFrameFromTaskFile(taskFile) : "world";
+  // Marker frame can be overridden by parameter; default is "odom".
+  std::string markerFrame = "odom";
+  try {
+    markerFrame = node->get_parameter("markerFrame").as_string();
+  } catch (const rclcpp::exceptions::ParameterNotDeclaredException &) {
+    markerFrame = "odom";
+  }
+  if (enableDynamicFrame) {
+    markerFrame = getMarkerFrameFromTaskFile(taskFile);
+  }
   RCLCPP_INFO(node->get_logger(), "Marker frame: %s", markerFrame.c_str());
 
   bool enableJoystick = false;

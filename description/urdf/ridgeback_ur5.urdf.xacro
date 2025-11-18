@@ -25,11 +25,6 @@
   <material name="black">
     <color rgba="0.15 0.15 0.15 1.0"/>
   </material>
-  <xacro:if value="$(arg ros2_control_mode)">
-    <link name="world"/>
-    <link name="base_x_link"/>
-    <link name="base_y_link"/>
-  </xacro:if>
   <link name="front_rocker_link">
     <visual>
       <origin rpy="1.5707963267948966 0 1.5707963267948966" xyz="0 0 0"/>
@@ -172,29 +167,6 @@
     <origin rpy="0 0 0" xyz="0 -0.27549999999999997 0"/>
   </joint>
   <link name="base_link"/>
-  <xacro:if value="$(arg ros2_control_mode)">
-    <joint name="base_x_joint" type="prismatic">
-      <origin rpy="0 0 0" xyz="0 0 0"/>
-      <parent link="world"/>
-      <child link="base_x_link"/>
-      <axis xyz="1 0 0"/>
-      <limit effort="1.0" lower="-1000" upper="1000" velocity="10"/>
-    </joint>
-    <joint name="base_y_joint" type="prismatic">
-      <origin rpy="0 0 0" xyz="0 0 0"/>
-      <parent link="base_x_link"/>
-      <child link="base_y_link"/>
-      <axis xyz="0 1 0"/>
-      <limit effort="1.0" lower="-1000" upper="1000" velocity="10"/>
-    </joint>
-    <joint name="base_yaw_joint" type="continuous">
-      <origin rpy="0 0 0" xyz="0 0 0"/>
-      <parent link="base_y_link"/>
-      <child link="base_link"/>
-      <axis xyz="0 0 1"/>
-      <limit effort="1.0" velocity="10"/>
-    </joint>
-  </xacro:if>
   <joint name="base_link_joint" type="fixed">
     <origin rpy="0 0 0" xyz="0 0 0"/>
     <parent link="base_link"/>
@@ -700,20 +672,15 @@
         <state_interface name="position" />
         <state_interface name="velocity" />
       </joint>
-      <joint name="base_forward_joint">
-        <command_interface name="velocity" />
-        <state_interface name="velocity" />
-      </joint>
-      <joint name="base_yaw_joint">
+      <joint name="left_wheel_joint">
         <command_interface name="velocity" />
         <state_interface name="position" />
         <state_interface name="velocity" />
       </joint>
-      <joint name="base_x_joint">
+      <joint name="right_wheel_joint">
+        <command_interface name="velocity" />
         <state_interface name="position" />
-      </joint>
-      <joint name="base_y_joint">
-        <state_interface name="position" />
+        <state_interface name="velocity" />
       </joint>
     </ros2_control>
   </xacro:if>
