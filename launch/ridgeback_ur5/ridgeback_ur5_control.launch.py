@@ -46,20 +46,6 @@ def generate_launch_description():
 
     package_share = FindPackageShare("ocs2_ros2_control")
 
-    control_urdf = PathJoinSubstitution([
-        package_share,
-        "description",
-        "urdf",
-        "ridgeback_ur5_ros2_control.urdf",
-    ])
-
-    robot_description_content = Command([
-        FindExecutable(name="cat"),
-        " ",
-        control_urdf,
-    ])
-    robot_description = {"robot_description": ParameterValue(robot_description_content, value_type=str)}
-
     controller_config = PathJoinSubstitution([
         package_share,
         "config",
@@ -104,6 +90,15 @@ def generate_launch_description():
         "controller_manager.ros__parameters.ocs2_controller.ros__parameters.world_frame": world_frame,
         "controller_manager.ros__parameters.ridgeback_base_controller.ros__parameters.odom_frame_id": world_frame,
     }
+
+    # Use the same URDF file (urdfFile) for both ros2_control and OCS2,
+    # so there is a single source of robot description.
+    robot_description_content = Command([
+        FindExecutable(name="cat"),
+        " ",
+        urdf_file,
+    ])
+    robot_description = {"robot_description": ParameterValue(robot_description_content, value_type=str)}
 
     control_node = Node(
         package="controller_manager",

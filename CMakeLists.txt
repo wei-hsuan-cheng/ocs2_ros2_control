@@ -93,28 +93,22 @@ if(NOT XACRO_EXECUTABLE)
   message(FATAL_ERROR "xacro executable not found")
 endif()
 
+# Generate a single flattened URDF with ros2_control enabled from the xacro.
 set(XACRO_INPUT ${CMAKE_CURRENT_SOURCE_DIR}/description/urdf/ridgeback_ur5.urdf.xacro)
 set(GENERATED_URDF_DIR ${CMAKE_CURRENT_BINARY_DIR}/generated_urdf)
-set(GENERATED_DEFAULT ${GENERATED_URDF_DIR}/ridgeback_ur5.urdf)
-set(GENERATED_CONTROL ${GENERATED_URDF_DIR}/ridgeback_ur5_ros2_control.urdf)
+set(GENERATED_URDF ${GENERATED_URDF_DIR}/ridgeback_ur5.urdf)
 set(INITIAL_POSE_FILE ${CMAKE_CURRENT_SOURCE_DIR}/config/ridgeback_ur5/ridgeback_ur5_initial_pose.yaml)
 
 file(MAKE_DIRECTORY ${GENERATED_URDF_DIR})
 
 add_custom_command(
-  OUTPUT ${GENERATED_DEFAULT}
-  COMMAND ${XACRO_EXECUTABLE} -o ${GENERATED_DEFAULT} ${XACRO_INPUT} ros2_control_mode:=false initial_pose_file:=${INITIAL_POSE_FILE}
-  DEPENDS ${XACRO_INPUT}
-)
-
-add_custom_command(
-  OUTPUT ${GENERATED_CONTROL}
-  COMMAND ${XACRO_EXECUTABLE} -o ${GENERATED_CONTROL} ${XACRO_INPUT} ros2_control_mode:=true initial_pose_file:=${INITIAL_POSE_FILE}
+  OUTPUT ${GENERATED_URDF}
+  COMMAND ${XACRO_EXECUTABLE} -o ${GENERATED_URDF} ${XACRO_INPUT} ros2_control_mode:=true initial_pose_file:=${INITIAL_POSE_FILE}
   DEPENDS ${XACRO_INPUT}
 )
 
 add_custom_target(generate_ridgeback_urdf ALL
-  DEPENDS ${GENERATED_DEFAULT} ${GENERATED_CONTROL}
+  DEPENDS ${GENERATED_URDF}
 )
 
 add_dependencies(${PROJECT_NAME} generate_ridgeback_urdf)
@@ -151,6 +145,12 @@ install(DIRECTORY config/
 
 install(DIRECTORY description/
   DESTINATION share/${PROJECT_NAME}/description
+)
+
+# Install the generated flattened URDF so that both ros2_control and OCS2
+# nodes can use the same robot description file.
+install(FILES ${GENERATED_URDF}
+  DESTINATION share/${PROJECT_NAME}/description/urdf
 )
 
 install(DIRECTORY rviz/
