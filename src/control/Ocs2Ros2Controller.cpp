@@ -51,7 +51,8 @@ controller_interface::CallbackReturn Ocs2Ros2Controller::on_init() {
     const auto local_share = ament_index_cpp::get_package_share_directory("ocs2_ros2_control");
     default_task = local_share + "/config/ridgeback_ur5/task.info";
     default_lib = local_share + "/auto_generated/ridgeback_ur5";
-    default_urdf = local_share + "/description/urdf/ridgeback_ur5.urdf";
+    // Default URDF is the file generated at launch time from the xacro.
+    default_urdf = local_share + "/description/ridgeback_ur5/urdf/ridgeback_ur5.urdf";
     local_paths_set = true;
   } catch (const std::exception &e) {
     RCLCPP_WARN(get_node()->get_logger(), "Unable to locate ocs2_ros2_control share directory: %s", e.what());
@@ -64,6 +65,7 @@ controller_interface::CallbackReturn Ocs2Ros2Controller::on_init() {
     } catch (const std::exception &e) {
       RCLCPP_WARN(get_node()->get_logger(), "Unable to locate ocs2_mobile_manipulator share directory: %s", e.what());
     }
+    // Fallback URDF path if our own package is not found.
     try {
       const auto assets_share = ament_index_cpp::get_package_share_directory("ocs2_robotic_assets");
       default_urdf = assets_share + "/resources/mobile_manipulator/ridgeback_ur5/urdf/ridgeback_ur5.urdf";

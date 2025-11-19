@@ -1,3 +1,6 @@
+import os
+import subprocess
+
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
 from launch.conditions import IfCondition, UnlessCondition
@@ -5,6 +8,34 @@ from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, PythonExpression
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
+from ament_index_python.packages import get_package_share_directory
+
+
+def _ensure_ridgeback_urdf():
+    """Generate ridgeback_ur5.urdf from the xacro into the config folder."""
+    share_dir = get_package_share_directory("ocs2_ros2_control")
+    xacro_in = os.path.join(share_dir, "description", "ridgeback_ur5", "urdf", "ridgeback_ur5.urdf.xacro")
+    urdf_out = os.path.join(share_dir, "description", "ridgeback_ur5", "urdf", "ridgeback_ur5.urdf")
+    initial_pose = os.path.join(share_dir, "config", "ridgeback_ur5", "ridgeback_ur5_initial_pose.yaml")
+
+    try:
+        subprocess.run(
+            [
+                "xacro",
+                xacro_in,
+                f"initial_pose_file:={initial_pose}",
+                "ros2_control_mode:=true",
+                "-o",
+                urdf_out,
+            ],
+            check=True,
+        )
+        print(f"[ridgeback_ur5_bringup] Generate URDF from xacro")
+
+    except Exception as exc:  # noqa: BLE001
+        print(f"[ridgeback_ur5_bringup] Failed to generate URDF from xacro: {exc}")
+
+    return urdf_out
 
 
 def generate_launch_description():
@@ -21,12 +52,8 @@ def generate_launch_description():
         "auto_generated",
         "ridgeback_ur5",
     ])
-    urdf_default = PathJoinSubstitution([
-        package_share,
-        "description",
-        "urdf",
-        "ridgeback_ur5.urdf",
-    ])
+    # Generate a URDF at launch time from the xacro and use it everywhere.
+    urdf_default = _ensure_ridgeback_urdf()
     initial_pose_default = PathJoinSubstitution([
         package_share,
         "config",

@@ -13,9 +13,6 @@ ridgeback_base_controller:
     left_wheel_names: ["left_wheel_joint"]
     right_wheel_names: ["right_wheel_joint"]
 
-    # Geometry from URDF:
-    #  - Wheels are at y = ±0.2755 m → separation = 0.551 m
-    #  - Wheel collision cylinders have radius = 0.0759 m
     wheel_separation: 0.551
     wheel_radius: 0.0759
 

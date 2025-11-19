@@ -81,14 +81,28 @@ def generate_launch_description():
     command_smoothing_alpha = LaunchConfiguration("commandSmoothingAlpha")
     world_frame = LaunchConfiguration("worldFrame")
 
-    ocs2_params = {
-        "controller_manager.ros__parameters.ocs2_controller.ros__parameters.task_file": task_file,
-        "controller_manager.ros__parameters.ocs2_controller.ros__parameters.lib_folder": lib_folder,
-        "controller_manager.ros__parameters.ocs2_controller.ros__parameters.urdf_file": urdf_file,
-        "controller_manager.ros__parameters.ocs2_controller.ros__parameters.future_time_offset": future_time_offset,
-        "controller_manager.ros__parameters.ocs2_controller.ros__parameters.command_smoothing_alpha": command_smoothing_alpha,
-        "controller_manager.ros__parameters.ocs2_controller.ros__parameters.world_frame": world_frame,
-        "controller_manager.ros__parameters.ridgeback_base_controller.ros__parameters.odom_frame_id": world_frame,
+    # Controller-specific parameter overrides as a nested structure, equivalent
+    # to the YAML used by ros2_control demos.
+    controller_params = {
+        "controller_manager": {
+            "ros__parameters": {
+                "ocs2_controller": {
+                    "ros__parameters": {
+                        "task_file": task_file,
+                        "lib_folder": lib_folder,
+                        "urdf_file": urdf_file,
+                        "future_time_offset": future_time_offset,
+                        "command_smoothing_alpha": command_smoothing_alpha,
+                        "world_frame": world_frame,
+                    }
+                },
+                "ridgeback_base_controller": {
+                    "ros__parameters": {
+                        "odom_frame_id": world_frame,
+                    }
+                },
+            }
+        }
     }
 
     # Use the same URDF file (urdfFile) for both ros2_control and OCS2,
@@ -103,7 +117,7 @@ def generate_launch_description():
     control_node = Node(
         package="controller_manager",
         executable="ros2_control_node",
-        parameters=[robot_description, controller_config, ocs2_params],
+        parameters=[robot_description, controller_config, controller_params],
         output="both",
         remappings=[
             ("~/robot_description", "/robot_description"),
