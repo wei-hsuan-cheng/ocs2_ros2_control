@@ -11,7 +11,7 @@ from launch_ros.substitutions import FindPackageShare
 from ament_index_python.packages import get_package_share_directory
 
 
-def _ensure_ridgeback_urdf():
+def _urdf_from_xacro_path():
     """Generate ridgeback_ur5.urdf from the xacro into the config folder."""
     share_dir = get_package_share_directory("ocs2_ros2_control")
     xacro_in = os.path.join(share_dir, "description", "ridgeback_ur5", "urdf", "ridgeback_ur5.urdf.xacro")
@@ -53,7 +53,7 @@ def generate_launch_description():
         "ridgeback_ur5",
     ])
     # Generate a URDF at launch time from the xacro and use it everywhere.
-    urdf_default = _ensure_ridgeback_urdf()
+    urdf_default = _urdf_from_xacro_path()
     initial_pose_default = PathJoinSubstitution([
         package_share,
         "config",
