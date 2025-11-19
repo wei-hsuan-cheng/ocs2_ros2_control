@@ -43,43 +43,6 @@ controller_interface::CallbackReturn Ocs2Ros2Controller::on_init() {
       "ur_arm_wrist_3_joint",
   };
 
-  std::string default_task = kDefaultTaskFile;
-  std::string default_lib = kDefaultLibFolder;
-  std::string default_urdf = kDefaultUrdfFile;
-  bool local_paths_set = false;
-  try {
-    const auto local_share = ament_index_cpp::get_package_share_directory("ocs2_ros2_control");
-    default_task = local_share + "/config/ridgeback_ur5/task.info";
-    default_lib = local_share + "/auto_generated/ridgeback_ur5";
-    // Default URDF is the file generated at launch time from the xacro.
-    default_urdf = local_share + "/description/ridgeback_ur5/urdf/ridgeback_ur5.urdf";
-    local_paths_set = true;
-  } catch (const std::exception &e) {
-    RCLCPP_WARN(get_node()->get_logger(), "Unable to locate ocs2_ros2_control share directory: %s", e.what());
-  }
-  if (!local_paths_set) {
-    try {
-      const auto manip_share = ament_index_cpp::get_package_share_directory("ocs2_mobile_manipulator");
-      default_task = manip_share + "/config/ridgeback_ur5/task.info";
-      default_lib = manip_share + "/auto_generated/ridgeback_ur5";
-    } catch (const std::exception &e) {
-      RCLCPP_WARN(get_node()->get_logger(), "Unable to locate ocs2_mobile_manipulator share directory: %s", e.what());
-    }
-    // Fallback URDF path if our own package is not found.
-    try {
-      const auto assets_share = ament_index_cpp::get_package_share_directory("ocs2_robotic_assets");
-      default_urdf = assets_share + "/resources/mobile_manipulator/ridgeback_ur5/urdf/ridgeback_ur5.urdf";
-    } catch (const std::exception &e) {
-      RCLCPP_WARN(get_node()->get_logger(), "Unable to locate ocs2_robotic_assets share directory: %s", e.what());
-    }
-  }
-
-  declareParameterIfNotDeclared<std::string>("task_file", default_task);
-  declareParameterIfNotDeclared<std::string>("lib_folder", default_lib);
-  declareParameterIfNotDeclared<std::string>("urdf_file", default_urdf);
-  declareParameterIfNotDeclared<double>("future_time_offset", future_time_offset_);
-  declareParameterIfNotDeclared<double>("command_smoothing_alpha", command_smoothing_alpha_);
-  declareParameterIfNotDeclared<std::string>("world_frame", world_frame_);
   declareParameterIfNotDeclared<std::vector<std::string>>("arm_joints", arm_joint_names_);
 
   return controller_interface::CallbackReturn::SUCCESS;
@@ -87,13 +50,18 @@ controller_interface::CallbackReturn Ocs2Ros2Controller::on_init() {
 
 controller_interface::CallbackReturn Ocs2Ros2Controller::on_configure(const rclcpp_lifecycle::State &) {
   auto node = get_node();
-  task_file_ = node->get_parameter("task_file").as_string();
-  lib_folder_ = node->get_parameter("lib_folder").as_string();
-  urdf_file_ = node->get_parameter("urdf_file").as_string();
-  future_time_offset_ = node->get_parameter("future_time_offset").as_double();
-  command_smoothing_alpha_ = node->get_parameter("command_smoothing_alpha").as_double();
-  world_frame_ = node->get_parameter("world_frame").as_string();
+  
+  task_file_ = node->get_parameter("taskFile").as_string();
+  lib_folder_ = node->get_parameter("libFolder").as_string();
+  urdf_file_ = node->get_parameter("urdfFile").as_string();
+
+  future_time_offset_ = node->get_parameter("futureTimeOffset").as_double();
+  command_smoothing_alpha_ = node->get_parameter("commandSmoothingAlpha").as_double();
+  world_frame_ = node->get_parameter("worldFrame").as_string();
+  
   arm_joint_names_ = node->get_parameter("arm_joints").as_string_array();
+  
+  // Clamp region of alpha [0, 1]
   command_smoothing_alpha_ = std::max(0.0, std::min(1.0, command_smoothing_alpha_));
 
   RCLCPP_INFO(node->get_logger(), "Controller params: task_file='%s' lib_folder='%s' urdf_file='%s'",

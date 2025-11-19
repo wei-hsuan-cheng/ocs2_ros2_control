@@ -81,32 +81,6 @@ def generate_launch_description():
     command_smoothing_alpha = LaunchConfiguration("commandSmoothingAlpha")
     world_frame = LaunchConfiguration("worldFrame")
 
-    # Controller-specific parameter overrides as a nested structure, equivalent
-    # to the YAML used by ros2_control demos.
-    controller_params = {
-        "controller_manager": {
-            "ros__parameters": {
-                "ocs2_controller": {
-                    "ros__parameters": {
-                        "task_file": task_file,
-                        "lib_folder": lib_folder,
-                        "urdf_file": urdf_file,
-                        "future_time_offset": future_time_offset,
-                        "command_smoothing_alpha": command_smoothing_alpha,
-                        "world_frame": world_frame,
-                    }
-                },
-                "ridgeback_base_controller": {
-                    "ros__parameters": {
-                        "odom_frame_id": world_frame,
-                    }
-                },
-            }
-        }
-    }
-
-    # Use the same URDF file (urdfFile) for both ros2_control and OCS2,
-    # so there is a single source of robot description.
     robot_description_content = Command([
         FindExecutable(name="cat"),
         " ",
@@ -117,7 +91,16 @@ def generate_launch_description():
     control_node = Node(
         package="controller_manager",
         executable="ros2_control_node",
-        parameters=[robot_description, controller_config, controller_params],
+        parameters=[robot_description, 
+                    controller_config, 
+                    {
+                    "taskFile": task_file,
+                    "libFolder": lib_folder,
+                    "urdfFile": urdf_file,
+                    "futureTimeOffset": future_time_offset,
+                    "commandSmoothingAlpha": command_smoothing_alpha,
+                    "worldFrame": world_frame,
+                    }],
         output="both",
         remappings=[
             ("~/robot_description", "/robot_description"),
