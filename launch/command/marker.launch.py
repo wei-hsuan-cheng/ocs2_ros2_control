@@ -43,22 +43,13 @@ def _bool_to_str(value):
 def generate_launch_description():
     params = _load_common_params()
     marker_defaults = params.get("command", {}).get("marker", {})
-    default_frame = _load_default_frame_from_robot_config()
-
-    package_share = FindPackageShare("ocs2_ros2_control")
-
-    initial_pose_default = PathJoinSubstitution([
-        package_share,
-        "config",
-        "ridgeback_ur5",
-        "ridgeback_ur5_initial_pose.yaml",
-    ])
+    default_global_frame = _load_default_frame_from_robot_config()
 
     declared_arguments = [
         DeclareLaunchArgument("taskFile", default_value="", description="Path to the OCS2 task file."),
         DeclareLaunchArgument("libFolder", default_value="", description="Folder for auto-generated OCS2 libraries."),
         DeclareLaunchArgument("urdfFile", default_value="", description="URDF passed to visualization nodes."),
-        DeclareLaunchArgument("initialPoseFile", default_value=initial_pose_default, description="Initial pose YAML for marker/visualization."),
+        DeclareLaunchArgument("initialPoseFile", default_value="", description="Initial pose YAML for marker/visualization."),
         DeclareLaunchArgument(
             "markerPublishRate",
             default_value=str(marker_defaults.get("publish_rate", 100.0)),
@@ -75,8 +66,8 @@ def generate_launch_description():
             description="Enable automatic marker repositioning.",
         ),
         DeclareLaunchArgument(
-            "markerFrame",
-            default_value=str(default_frame),
+            "markerGlobalFrame",
+            default_value=str(default_global_frame),
             description="Frame used for the interactive marker.",
         ),
     ]
@@ -98,7 +89,7 @@ def generate_launch_description():
             "markerPublishRate": LaunchConfiguration("markerPublishRate"),
             "enableJoystick": LaunchConfiguration("enableJoystick"),
             "enableAutoPosition": LaunchConfiguration("enableAutoPosition"),
-            "markerFrame": LaunchConfiguration("markerFrame"),
+            "markerGlobalFrame": LaunchConfiguration("markerGlobalFrame"),
         }],
         output="screen",
     )

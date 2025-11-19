@@ -23,28 +23,9 @@ using ocs2::mobile_manipulator::MobileManipulatorInterface;
 
 namespace ocs2_ros2_control {
 
-namespace {
-
-constexpr char kDefaultTaskFile[] = "";
-constexpr char kDefaultLibFolder[] = "";
-constexpr char kDefaultUrdfFile[] = "";
-
-} // namespace
-
 Ocs2Ros2Controller::Ocs2Ros2Controller() = default;
 
 controller_interface::CallbackReturn Ocs2Ros2Controller::on_init() {
-  arm_joint_names_ = {
-      "ur_arm_shoulder_pan_joint",
-      "ur_arm_shoulder_lift_joint",
-      "ur_arm_elbow_joint",
-      "ur_arm_wrist_1_joint",
-      "ur_arm_wrist_2_joint",
-      "ur_arm_wrist_3_joint",
-  };
-
-  declareParameterIfNotDeclared<std::vector<std::string>>("arm_joints", arm_joint_names_);
-
   return controller_interface::CallbackReturn::SUCCESS;
 }
 
@@ -57,7 +38,7 @@ controller_interface::CallbackReturn Ocs2Ros2Controller::on_configure(const rclc
 
   future_time_offset_ = node->get_parameter("futureTimeOffset").as_double();
   command_smoothing_alpha_ = node->get_parameter("commandSmoothingAlpha").as_double();
-  world_frame_ = node->get_parameter("worldFrame").as_string();
+  global_frame_ = node->get_parameter("globalFrame").as_string();
   
   arm_joint_names_ = node->get_parameter("arm_joints").as_string_array();
   
@@ -79,7 +60,7 @@ controller_interface::CallbackReturn Ocs2Ros2Controller::on_configure(const rclc
   }
   try {
     visualization_node_ = std::make_shared<rclcpp::Node>(node->get_name() + std::string("_visualizer"), node->get_namespace());
-    visualization_ = std::make_unique<MobileManipulatorVisualization>(visualization_node_, *interface_, task_file_, urdf_file_, world_frame_);
+    visualization_ = std::make_unique<MobileManipulatorVisualization>(visualization_node_, *interface_, task_file_, urdf_file_, global_frame_);
   } catch (const std::exception &e) {
     RCLCPP_WARN(node->get_logger(), "Failed to initialize visualization: %s", e.what());
     visualization_.reset();

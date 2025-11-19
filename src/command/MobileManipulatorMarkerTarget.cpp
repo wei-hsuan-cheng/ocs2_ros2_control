@@ -197,17 +197,16 @@ int main(int argc, char* argv[]) {
       RCLCPP_INFO(node->get_logger(), "enableDynamicFrame parameter not found, using default: false");
   }
 
-  // Marker frame can be overridden by parameter; default is "odom".
-  std::string markerFrame = "odom";
+  std::string markerGlobalFrame = "";
   try {
-    markerFrame = node->get_parameter("markerFrame").as_string();
+    markerGlobalFrame = node->get_parameter("markerGlobalFrame").as_string();
   } catch (const rclcpp::exceptions::ParameterNotDeclaredException &) {
-    markerFrame = "odom";
+    markerGlobalFrame = "world";
   }
   if (enableDynamicFrame) {
-    markerFrame = getMarkerFrameFromTaskFile(taskFile);
+    markerGlobalFrame = getMarkerFrameFromTaskFile(taskFile);
   }
-  RCLCPP_INFO(node->get_logger(), "Marker frame: %s", markerFrame.c_str());
+  RCLCPP_INFO(node->get_logger(), "Marker frame: %s", markerGlobalFrame.c_str());
 
   bool enableJoystick = false;
   try { enableJoystick = node->get_parameter("enableJoystick").as_bool(); }
@@ -254,7 +253,7 @@ int main(int argc, char* argv[]) {
   if (dualArmMode) {
     RCLCPP_INFO(node->get_logger(), "Dual arm mode enabled - creating dual arm interactive markers");
     UnifiedTargetTrajectoriesInteractiveMarker targetPoseCommand(
-        node, robotName, &dualArmGoalPoseToTargetTrajectories, markerPublishRate, markerFrame);
+        node, robotName, &dualArmGoalPoseToTargetTrajectories, markerPublishRate, markerGlobalFrame);
 
     if (interfacePtr) {
       try {
@@ -360,7 +359,7 @@ int main(int argc, char* argv[]) {
 
   RCLCPP_INFO(node->get_logger(), "Single arm mode enabled");
   UnifiedTargetTrajectoriesInteractiveMarker targetPoseCommand(
-      node, robotName, &goalPoseToTargetTrajectories, markerPublishRate, markerFrame);
+      node, robotName, &goalPoseToTargetTrajectories, markerPublishRate, markerGlobalFrame);
 
   if (interfacePtr) {
     try {

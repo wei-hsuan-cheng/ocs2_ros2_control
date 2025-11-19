@@ -39,7 +39,7 @@ def generate_launch_description():
     params = _load_common_params()
     trajectory_defaults = params.get("command", {}).get("trajectory", {})
     axis_defaults = trajectory_defaults.get("axis", {})
-    default_frame = _load_default_frame_from_robot_config()
+    default_global_frame = _load_default_frame_from_robot_config()
 
     declared_arguments = [
         DeclareLaunchArgument("taskFile", default_value="", description="Path to the OCS2 task file."),
@@ -55,8 +55,8 @@ def generate_launch_description():
         DeclareLaunchArgument("trajectoryAxisY", default_value=str(axis_defaults.get("y", 0.0))),
         DeclareLaunchArgument("trajectoryAxisZ", default_value=str(axis_defaults.get("z", 1.0))),
         DeclareLaunchArgument(
-            "trajectoryFrame",
-            default_value=str(default_frame),
+            "trajectoryGlobalFrame",
+            default_value=str(default_global_frame),
             description="Frame used for trajectory target markers.",
         ),
     ]
@@ -81,7 +81,7 @@ def generate_launch_description():
             "axisX": LaunchConfiguration("trajectoryAxisX"),
             "axisY": LaunchConfiguration("trajectoryAxisY"),
             "axisZ": LaunchConfiguration("trajectoryAxisZ"),
-            "frameId": LaunchConfiguration("trajectoryFrame"),
+            "trajectoryGlobalFrame": LaunchConfiguration("trajectoryGlobalFrame"),
         }],
         output="screen",
     )

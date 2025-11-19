@@ -21,28 +21,27 @@ def _load_common_params():
         return yaml.safe_load(f)
 
 
+def _load_default_frame_from_robot_config():
+    cfg_share = get_package_share_directory("ocs2_ros2_control")
+    cfg_path = os.path.join(cfg_share, "config", "ridgeback_ur5", "ridgeback_ur5_ros2_control.yaml")
+    default_frame = "odom"
+    try:
+        with open(cfg_path, "r") as f:
+            diff_cfg = yaml.safe_load(f) or {}
+        default_frame = (
+            diff_cfg.get("ridgeback_base_controller", {})
+            .get("ros__parameters", {})
+            .get("odom_frame_id", default_frame)
+        )
+    except Exception:
+        default_frame = "odom"
+    return default_frame
+
+
 def generate_launch_description():
     params = _load_common_params()
     control_defaults = params.get("control", {})
-
-    # Load default global frame from the diff-drive controller config (odom_frame_id),
-    # so changing it in the YAML propagates automatically.
-    cfg_share = get_package_share_directory("ocs2_ros2_control")
-    diff_drive_cfg_path = os.path.join(
-        cfg_share, "config", "ridgeback_ur5", "ridgeback_ur5_ros2_control.yaml"
-    )
-    default_world_frame = "odom"
-    try:
-        with open(diff_drive_cfg_path, "r") as f:
-            diff_cfg = yaml.safe_load(f) or {}
-        default_world_frame = (
-            diff_cfg.get("ridgeback_base_controller", {})
-            .get("ros__parameters", {})
-            .get("odom_frame_id", default_world_frame)
-        )
-    except Exception:
-        # Fall back to "odom" if config is missing or malformed.
-        default_world_frame = "odom"
+    default_global_frame = _load_default_frame_from_robot_config()
 
     package_share = FindPackageShare("ocs2_ros2_control")
 
@@ -68,8 +67,8 @@ def generate_launch_description():
             description="Blending factor for consecutive MPC commands.",
         ),
         DeclareLaunchArgument(
-            "worldFrame",
-            default_value=str(default_world_frame),
+            "globalFrame",
+            default_value=str(default_global_frame),
             description="Global frame used for odometry and OCS2 visualization.",
         ),
     ]
@@ -79,7 +78,7 @@ def generate_launch_description():
     urdf_file = LaunchConfiguration("urdfFile")
     future_time_offset = LaunchConfiguration("futureTimeOffset")
     command_smoothing_alpha = LaunchConfiguration("commandSmoothingAlpha")
-    world_frame = LaunchConfiguration("worldFrame")
+    global_frame = LaunchConfiguration("globalFrame")
 
     robot_description_content = Command([
         FindExecutable(name="cat"),
@@ -99,9 +98,9 @@ def generate_launch_description():
                     "urdfFile": urdf_file,
                     "futureTimeOffset": future_time_offset,
                     "commandSmoothingAlpha": command_smoothing_alpha,
-                    "worldFrame": world_frame,
+                    "globalFrame": global_frame,
                     }],
-        output="both",
+        output="screen",
         remappings=[
             ("~/robot_description", "/robot_description"),
             ("/ridgeback_base_controller/cmd_vel", "/cmd_vel"),

@@ -40,9 +40,6 @@ public:
   controller_interface::return_type update(const rclcpp::Time &time, const rclcpp::Duration &period) override;
 
 private:
-  template <typename T>
-  void declareParameterIfNotDeclared(const std::string &name, const T &default_value);
-
   void resetMpc();
   ocs2::SystemObservation buildObservation(const rclcpp::Time &time) const;
   void applyCommand(const ocs2::vector_t &command);
@@ -50,7 +47,7 @@ private:
   ocs2::TargetTrajectories computeInitialTarget(const ocs2::vector_t &state, double time) const;
 
   std::vector<std::string> arm_joint_names_;
-  std::string world_frame_{"odom"};
+  std::string global_frame_{"world"};
 
   // State handles
   std::vector<hardware_interface::LoanedStateInterface *> joint_position_states_;
@@ -87,13 +84,5 @@ private:
   rclcpp::Node::SharedPtr visualization_node_;
   std::unique_ptr<MobileManipulatorVisualization> visualization_;
 };
-
-template <typename T>
-void Ocs2Ros2Controller::declareParameterIfNotDeclared(const std::string &name, const T &default_value) {
-  auto node = get_node();
-  if (!node->has_parameter(name)) {
-    node->declare_parameter<T>(name, default_value);
-  }
-}
 
 } // namespace ocs2_ros2_control

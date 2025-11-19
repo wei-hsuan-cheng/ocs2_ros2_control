@@ -47,13 +47,15 @@ def generate_launch_description():
         "ridgeback_ur5",
         "task.info",
     ])
+
     lib_default = PathJoinSubstitution([
         package_share,
         "auto_generated",
         "ridgeback_ur5",
     ])
-    # Generate a URDF at launch time from the xacro and use it everywhere.
+
     urdf_default = _urdf_from_xacro_path()
+    
     initial_pose_default = PathJoinSubstitution([
         package_share,
         "config",
