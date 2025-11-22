@@ -24,8 +24,12 @@ The package is intentionally self‑contained (`urdf`/`xacro`, `task` and `rviz`
 # Build and install
 cd ~/ros2_ws
 colcon build --symlink-install --packages-select ocs2_ros2_control && . install/setup.bash
-# Run ridgeback_ur5 demo (marker pose tracking)
-ros2 launch ocs2_ros2_control ridgeback_ur5_bringup.launch.py
+# Run ridgeback_ur5 demo with an interactive marker (default)
+ros2 launch ocs2_ros2_control ridgeback_ur5_bringup.launch.py commandType:=marker
+# Or: constant twist target for the mobile base + end-effector
+ros2 launch ocs2_ros2_control ridgeback_ur5_bringup.launch.py commandType:=twist
+# Or: figure-eight end-effector trajectory target
+ros2 launch ocs2_ros2_control ridgeback_ur5_bringup.launch.py commandType:=trajectory
 ```
 
 If you built `ocs2_ros2` in another workspace, source it **before** running the commands above (so their messages and plugins are discoverable).
@@ -35,18 +39,21 @@ The demo launch file starts:
 - `ros2_control_node` with the fake Ridgeback + UR5 hardware and the
   `Ocs2Ros2Controller`.
 - The `joint_state_broadcaster` that publsihes `joint_states` from hardware.
+- A target/command node selected via `commandType` (`marker`, `twist`, or
+  `trajectory`).
 - OCS2 MPC and marker nodes from `ocs2_mobile_manipulator_ros`.
 - RViz (unless `rviz:=false`) with the copied visualization config.
 
 Useful arguments:
 
-| Argument            | Default | Description                                      |
-|---------------------|---------|--------------------------------------------------|
-| `rviz`              | `true`  | Enable/disable RViz + interactive marker.        |
-| `taskFile`          | local   | Path to the OCS2 `task.info` file.               |
-| `libFolder`         | local   | Folder containing the auto-generated OCS2 libs.  |
-| `urdfFile`          | local   | URDF used by visualization nodes.                |
-| `markerPublishRate` | `100.0` | Interactive marker publish rate (Hz).            |
+| Argument            | Default  | Description                                                    |
+|---------------------|----------|----------------------------------------------------------------|
+| `rviz`              | `true`   | Enable/disable RViz + interactive marker.                      |
+| `taskFile`          | local    | Path to the OCS2 `task.info` file.                             |
+| `libFolder`         | local    | Folder containing the auto-generated OCS2 libs.                |
+| `urdfFile`          | local    | URDF used by visualization nodes.                              |
+| `commandType`       | `marker` | Target interface to start: `marker`, `twist`, or `trajectory`. |
+| `markerPublishRate` | `100.0`  | Interactive marker publish rate (Hz, `commandType=marker`).    |
 
 ## Folder layout
 
