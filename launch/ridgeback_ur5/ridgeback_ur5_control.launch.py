@@ -1,5 +1,5 @@
-import os
-import yaml
+import sys
+from pathlib import Path
 
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, RegisterEventHandler
@@ -7,41 +7,19 @@ from launch.substitutions import Command, FindExecutable, LaunchConfiguration, P
 from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterValue
 from launch_ros.substitutions import FindPackageShare
-from launch.event_handlers import OnProcessExit, OnProcessStart
-from ament_index_python.packages import get_package_share_directory
+from launch.event_handlers import OnProcessStart
 
+common_dir = Path(__file__).resolve().parent.parent / "common"
+if str(common_dir) not in sys.path:
+    sys.path.insert(0, str(common_dir))
 
-def _load_common_params():
-    params_path = os.path.join(
-        get_package_share_directory("ocs2_ros2_control"),
-        "config",
-        "common_params.yaml",
-    )
-    with open(params_path, "r") as f:
-        return yaml.safe_load(f)
-
-
-def _load_default_frame_from_robot_config():
-    cfg_share = get_package_share_directory("ocs2_ros2_control")
-    cfg_path = os.path.join(cfg_share, "config", "ridgeback_ur5", "ridgeback_ur5_ros2_control.yaml")
-    default_frame = "odom"
-    try:
-        with open(cfg_path, "r") as f:
-            diff_cfg = yaml.safe_load(f) or {}
-        default_frame = (
-            diff_cfg.get("ridgeback_base_controller", {})
-            .get("ros__parameters", {})
-            .get("odom_frame_id", default_frame)
-        )
-    except Exception:
-        default_frame = "odom"
-    return default_frame
+from config_utils import load_common_params, load_default_frame_from_robot_config  # noqa: E402
 
 
 def generate_launch_description():
-    params = _load_common_params()
+    params = load_common_params()
     control_defaults = params.get("control", {})
-    default_global_frame = _load_default_frame_from_robot_config()
+    default_global_frame = load_default_frame_from_robot_config()
 
     package_share = FindPackageShare("ocs2_ros2_control")
 

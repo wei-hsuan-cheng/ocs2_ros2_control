@@ -1,45 +1,24 @@
-import os
-import subprocess
+import sys
+from pathlib import Path
 
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
-from launch.conditions import IfCondition, UnlessCondition
+from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, PythonExpression
-from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 from ament_index_python.packages import get_package_share_directory
 
+common_dir = Path(__file__).resolve().parent.parent / "common"
+if str(common_dir) not in sys.path:
+    sys.path.insert(0, str(common_dir))
 
-def _urdf_from_xacro_path():
-    """Generate ridgeback_ur5.urdf from the xacro into the config folder."""
-    share_dir = get_package_share_directory("ocs2_ros2_control")
-    xacro_in = os.path.join(share_dir, "description", "ridgeback_ur5", "urdf", "ridgeback_ur5.urdf.xacro")
-    urdf_out = os.path.join(share_dir, "description", "ridgeback_ur5", "urdf", "ridgeback_ur5.urdf")
-    initial_pose = os.path.join(share_dir, "config", "ridgeback_ur5", "ridgeback_ur5_initial_pose.yaml")
-
-    try:
-        subprocess.run(
-            [
-                "xacro",
-                xacro_in,
-                f"initial_pose_file:={initial_pose}",
-                "ros2_control_mode:=true",
-                "-o",
-                urdf_out,
-            ],
-            check=True,
-        )
-        print(f"[ridgeback_ur5_bringup] Generate URDF from xacro")
-
-    except Exception as exc:  # noqa: BLE001
-        print(f"[ridgeback_ur5_bringup] Failed to generate URDF from xacro: {exc}")
-
-    return urdf_out
+from urdf_utils import generate_urdf_from_xacro  # noqa: E402
 
 
 def generate_launch_description():
     package_share = FindPackageShare("ocs2_ros2_control")
+    share_dir = Path(get_package_share_directory("ocs2_ros2_control"))
 
     task_default = PathJoinSubstitution([
         package_share,
@@ -54,7 +33,11 @@ def generate_launch_description():
         "ridgeback_ur5",
     ])
 
-    urdf_default = _urdf_from_xacro_path()
+    xacro_path = share_dir / "description" / "ridgeback_ur5" / "urdf" / "ridgeback_ur5.urdf.xacro"
+    urdf_path = share_dir / "description" / "ridgeback_ur5" / "urdf" / "ridgeback_ur5.urdf"
+    initial_pose_path = share_dir / "config" / "ridgeback_ur5" / "ridgeback_ur5_initial_pose.yaml"
+
+    urdf_default = generate_urdf_from_xacro(str(xacro_path), str(urdf_path), str(initial_pose_path))
     
     initial_pose_default = PathJoinSubstitution([
         package_share,

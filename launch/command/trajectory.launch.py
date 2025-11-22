@@ -1,45 +1,23 @@
-import os
-import yaml
+import sys
+from pathlib import Path
 
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
-from ament_index_python.packages import get_package_share_directory
 
+common_dir = Path(__file__).resolve().parent.parent / "common"
+if str(common_dir) not in sys.path:
+    sys.path.insert(0, str(common_dir))
 
-def _load_common_params():
-    params_path = os.path.join(
-        get_package_share_directory("ocs2_ros2_control"),
-        "config",
-        "common_params.yaml",
-    )
-    with open(params_path, "r") as f:
-        return yaml.safe_load(f)
-
-
-def _load_default_frame_from_robot_config():
-    cfg_share = get_package_share_directory("ocs2_ros2_control")
-    cfg_path = os.path.join(cfg_share, "config", "ridgeback_ur5", "ridgeback_ur5_ros2_control.yaml")
-    default_frame = "odom"
-    try:
-        with open(cfg_path, "r") as f:
-            diff_cfg = yaml.safe_load(f) or {}
-        default_frame = (
-            diff_cfg.get("ridgeback_base_controller", {})
-            .get("ros__parameters", {})
-            .get("odom_frame_id", default_frame)
-        )
-    except Exception:
-        default_frame = "odom"
-    return default_frame
+from config_utils import load_common_params, load_default_frame_from_robot_config  # noqa: E402
 
 
 def generate_launch_description():
-    params = _load_common_params()
+    params = load_common_params()
     trajectory_defaults = params.get("command", {}).get("trajectory", {})
     axis_defaults = trajectory_defaults.get("axis", {})
-    default_global_frame = _load_default_frame_from_robot_config()
+    default_global_frame = load_default_frame_from_robot_config()
 
     declared_arguments = [
         DeclareLaunchArgument("taskFile", default_value="", description="Path to the OCS2 task file."),

@@ -1,21 +1,16 @@
-import os
-import yaml
+import sys
+from pathlib import Path
 
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
-from ament_index_python.packages import get_package_share_directory
 
+common_dir = Path(__file__).resolve().parent.parent / "common"
+if str(common_dir) not in sys.path:
+    sys.path.insert(0, str(common_dir))
 
-def _load_common_params():
-    params_path = os.path.join(
-        get_package_share_directory("ocs2_ros2_control"),
-        "config",
-        "common_params.yaml",
-    )
-    with open(params_path, "r") as f:
-        return yaml.safe_load(f)
+from config_utils import load_common_params  # noqa: E402
 
 
 def _bool_to_str(value):
@@ -23,7 +18,7 @@ def _bool_to_str(value):
 
 
 def generate_launch_description():
-    params = _load_common_params()
+    params = load_common_params()
     twist_defaults = params.get("command", {}).get("twist", {})
     vel_defaults = twist_defaults.get("velocity", {})
     omega_defaults = twist_defaults.get("omega", {})
